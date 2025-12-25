@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+
+requests
+pydub
+twilio
+
+openai
+httpx
