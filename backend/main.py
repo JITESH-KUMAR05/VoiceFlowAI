@@ -48,6 +48,8 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"Status": "Backend is running", "Service": "VoiceFlow AI Agent"}
+
+
 @app.post("/api/phone/call")
 async def initiate_call(request: InitiateCallRequest):
     # 1. Initiate Call
