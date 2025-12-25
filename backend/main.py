@@ -7,17 +7,29 @@
 
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 import uvicorn
 from dotenv import load_dotenv
-import os
 
-load_dotenv()
+
 
 from config import Settings
 from models.Schemas import InitiateCallRequest
+from services.twilio_service import TwilioService
+from services.openai_service import OpenAIService
+from services.murf_service import MurfService
+
+load_dotenv()
 
 app = FastAPI(title="VoiceFlow AI Agent")
+
+# Initialize Services
+twilio_service = TwilioService()
+openai_service = OpenAIService()
+murf_service = MurfService()
+
+# In-memory storing conversation histories for simplicity
+conversations = {}
 
 # CORS -> Allow frontend to communicate with backend
 app.add_middleware(
