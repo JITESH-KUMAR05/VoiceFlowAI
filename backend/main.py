@@ -31,6 +31,8 @@ murf_service = MurfService()
 # In-memory storing conversation histories for simplicity
 conversations = {}
 
+call_metadata = {}
+
 # CORS -> Allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
@@ -44,21 +46,12 @@ app.add_middleware(
 async def root():
     return {"Status": "Backend is running", "Service": "VoiceFlow AI Agent"}
 
-# Placeholder for additional routes and logic
+# 1. Initiate Call Endpoint
 @app.post("/api/phone/call")
 async def initiate_call(request: InitiateCallRequest):
-    """
-    Endpoint to start an outbound call
-    
-    """
+    call_id = twilio_service.initiate_call(request.phone_number)
 
-    # twilio logic will come here
-
-    return {
-        "status": "Call initiated",
-        "message": f"calling {request.lead_name} at {request.lead_phone_number}...",
-        "agent": request.agent_type
-    }
+    system
     
 
 
