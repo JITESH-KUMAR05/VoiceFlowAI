@@ -108,7 +108,7 @@ export default function Index() {
               features={b2bFeatures}
               tags={["Azure OpenAI", "Voice Coaching"]}
               ctaText="Launch Sales Copilot"
-              ctaLink="/b2b-sales"
+              ctaLink="/b2b"
               icon={Zap}
               variant="primary"
             />

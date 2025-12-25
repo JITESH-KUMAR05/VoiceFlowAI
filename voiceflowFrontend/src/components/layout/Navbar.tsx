@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
-  { path: "/b2b-sales", label: "B2B Sales", icon: Zap },
+  { path: "/b2b", label: "B2B Sales", icon: Zap },
   { path: "/real-estate", label: "Real Estate", icon: Phone },
-  { path: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export function Navbar() {
