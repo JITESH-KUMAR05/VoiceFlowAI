@@ -12,6 +12,7 @@ import uvicorn
 import os
 import json
 from dotenv import load_dotenv
+from datetime import datetime
 
 
 
@@ -47,86 +48,125 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"Status": "Backend is running", "Service": "VoiceFlow AI Agent"}
-
-# 1. Initiate Call Endpoint
 @app.post("/api/phone/call")
 async def initiate_call(request: InitiateCallRequest):
-    call_id = twilio_service.initiate_call(request.phone_number)
+    # 1. Initiate Call
+    call_sid = twilio_service.initiate_call(request.phone_number)
 
-    # 2. Define Persona based on agent_type
+    # 2. Construct Context from Frontend Data
+    details_text = ""
+    if request.details:
+        # Converts {budget: "50k", location: "Mumbai"} -> "Budget: 50k, Location: Mumbai"
+        details_text = ", ".join([f"{k.replace('_', ' ').title()}: {v}" for k, v in request.details.items() if v])
+
+    # 3. Define Persona & Inject Context
     if request.agent_type == "real_estate":
-        # Real Estate Persona
         system_prompt = (
-            f"You are a professional Real Estate Assistant named Sarah. "
-            f"You are calling {request.lead_name}. "
-            "Your goal is to qualify the lead for a property investment. "
-            "Ask about their budget, preferred location (e.g., Mumbai, Bangalore), and timeline. "
-            "Keep your responses short, polite, and conversational."
+            f"You are Sarah, a Real Estate Assistant calling {request.lead_name}. "
+            f"Context: {details_text}. "
+            "Your goal: Qualify them for a property. "
+            "If they provided a budget/location, confirm it. If not, ask for it. "
+            "Keep responses under 2 sentences. Be polite and professional."
         )
-        greeting = f"Hello {request.lead_name}, this is Sarah calling regarding your property inquiry. Is this a good time to talk?"
-    
+        greeting = f"Hello {request.lead_name}, this is Sarah. I received your inquiry regarding property in {request.details.get('location', 'our area')}. Is this a good time?"
     else:
-        # Default: B2B Sales Persona
         system_prompt = (
-            f"You are a B2B Sales Representative named Alex from VoiceFlow. "
-            f"You are calling {request.lead_name} from {request.lead_company or 'their company'}. "
-            "Your goal is to schedule a quick demo for our AI phone agent solution. "
-            "Highlight features like ultra-low latency and human-like voices. "
-            "Keep your responses concise (under 2 sentences) and persuasive."
+            f"You are Alex, a B2B Sales Rep calling {request.lead_name} from {request.lead_company or 'their company'}. "
+            f"Context: {details_text}. "
+            "Your goal: Book a demo for our AI agent. "
+            "Keep responses under 2 sentences. Be persuasive."
         )
-        greeting = f"Hi {request.lead_name}, this is Alex from VoiceFlow. I noticed you were interested in AI solutions. Do you have a minute?"
-    
-    conversations[call_id] = [{"role": "system", "content": system_prompt}]
-    call_metadata[call_id] = {"greeting": greeting, "agent_type": request.agent_type}
-    
-    return {
-        "status": "initiated", 
-        "call_sid": call_id, 
-        "agent": request.agent_type
+        greeting = f"Hi {request.lead_name}, this is Alex from VoiceFlow. Do you have a minute?"
+
+    # 4. Store in RAM (Instant)
+    conversations[call_sid] = [{"role": "system", "content": system_prompt}]
+    call_metadata[call_sid] = {
+        "greeting": greeting, 
+        "agent_type": request.agent_type,
+        "start_time": datetime.now().isoformat(),
+        "lead_data": request.dict()
     }
     
-# 2. Twilio Start Webhook (Called when customer answers)
+    return {"status": "initiated", "call_sid": call_sid}
+
 @app.post("/api/phone/twiml/start")
 async def call_start(CallSid: str = Form(...)):
-    # 1. Retrieve the specific greeting for this call
     metadata = call_metadata.get(CallSid, {})
-    greeting_text = metadata.get("greeting", "Hello! I am calling from VoiceFlow.")
+    greeting_text = metadata.get("greeting", "Hello.")
     
-    # 2. Add greeting to history so AI knows it spoke
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
-    # 3. Generate Audio URL directly from Murf (Fastest method)
     audio_url = murf_service.generate_audio_url(greeting_text)
-    
-    # 4. Return TwiML to play audio
-    xml_response = twilio_service.create_response(audio_url)
-    return Response(content=xml_response, media_type="application/xml")
+    return Response(content=twilio_service.create_response(audio_url), media_type="application/xml")
 
-# 3. Process Speech Webhook (Called when customer speaks)
 @app.post("/api/phone/twiml/process")
 async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None)):
-    # If silence, just listen again
     if not SpeechResult:
         return Response(content=twilio_service.create_response(None), media_type="application/xml")
 
-    # 1. Update History with User Speech
+    # 1. Update RAM History (Instant)
     history = conversations.get(CallSid, [])
     history.append({"role": "user", "content": SpeechResult})
     
-    # 2. Get Smart Response from OpenAI
+    # 2. Get AI Response
     ai_text = await openai_service.generate_response(history)
     
-    # 3. Update History with AI Response
+    # 3. Update RAM History (Instant)
     history.append({"role": "assistant", "content": ai_text})
     conversations[CallSid] = history 
     
-    # 4. Generate Audio URL from Murf
+    # 4. Generate Audio
     audio_url = murf_service.generate_audio_url(ai_text)
     
-    # 5. Return TwiML
-    xml_response = twilio_service.create_response(audio_url)
-    return Response(content=xml_response, media_type="application/xml")
+    return Response(content=twilio_service.create_response(audio_url), media_type="application/xml")
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# --- NEW: Handle End of Call ---
+@app.post("/api/phone/status")
+async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
+    """
+    Twilio calls this when the call ends (completed, busy, failed).
+    This is where we do the heavy lifting: Saving to DB/File.
+    """
+    if CallStatus in ['completed', 'failed', 'busy', 'no-answer']:
+        print(f"Call {CallSid} ended: {CallStatus}")
+        
+        # 1. Get Data
+        history = conversations.pop(CallSid, []) # Remove from RAM
+        metadata = call_metadata.pop(CallSid, {}) # Remove from RAM
+        
+        if not history:
+            return
+            
+        # 2. Prepare Record
+        record = {
+            "call_id": CallSid,
+            "status": CallStatus,
+            "agent_type": metadata.get("agent_type"),
+            "lead_data": metadata.get("lead_data"),
+            "conversation": history,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 3. Save to JSON File (Simulating DB)
+        filename = f"database/{metadata.get('agent_type', 'general')}_records.json"
+        os.makedirs("database", exist_ok=True)
+        
+        # Append to list in file (Simple implementation)
+        try:
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    data = json.load(f)
+            else:
+                data = []
+            
+            data.append(record)
+            
+            with open(filename, 'w') as f:
+                json.dump(data, f, indent=2)
+                
+            print(f"Saved record to {filename}")
+        except Exception as e:
+            print(f"Error saving record: {e}")
+
+    return {"status": "ok"}
