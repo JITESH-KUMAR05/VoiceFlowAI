@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Opitonal, List, Optional, Optional
+from typing import Dict,Any, Opitonal, List, Optional, Optional
 
 class InitiateCallRequest(BaseModel):
     phone_number:str
@@ -7,6 +7,7 @@ class InitiateCallRequest(BaseModel):
     lead_email:str
     lead_company:Optional[str] = None
     agent_type:str
+    details: Optional[Dict[str, Any]] = {} 
 
 class CallRecord(BaseModel):
     call_id:str
