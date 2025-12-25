@@ -32,10 +32,23 @@ app.add_middleware(
 async def root():
     return {"Status": "Backend is running", "Service": "VoiceFlow AI Agent"}
 
+# Placeholder for additional routes and logic
+@app.post("/api/phone/call")
+async def initiate_call(request: InitiateCallRequest):
+    """
+    Endpoint to start an outbound call
+    
+    """
 
-def main():
-    print("Hello from backend!")
+    # twilio logic will come here
+
+    return {
+        "status": "Call initiated",
+        "message": f"calling {request.lead_name} at {request.lead_phone_number}...",
+        "agent": request.agent_type
+    }
+    
 
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run("main:app",host="0.0.0.0", port=8000, reload=True)
