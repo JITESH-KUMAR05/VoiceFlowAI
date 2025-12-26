@@ -18,7 +18,7 @@ export default function RealEstateDashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-wrap gap-4 mb-8">
-          <Link to="/real-estate/live-call"><Button variant="gradient-secondary" size="lg" className="gap-2"><Phone className="h-5 w-5" />Start Live Call</Button></Link>
+          <Link to="/real-estate/test"><Button variant="gradient-secondary" size="lg" className="gap-2"><Phone className="h-5 w-5" />Test Agent</Button></Link>
           <Link to="/real-estate/crm"><Button variant="glass" size="lg" className="gap-2"><Users className="h-5 w-5" />View CRM</Button></Link>
           <Link to="/real-estate/analytics"><Button variant="glass" size="lg" className="gap-2"><BarChart3 className="h-5 w-5" />View Analytics</Button></Link>
         </motion.div>
@@ -41,7 +41,7 @@ export default function RealEstateDashboard() {
             ))}
           </div>
           <div className="mt-8">
-            <Link to="/real-estate/live-call"><Button variant="gradient-secondary" className="gap-2">Test Real Estate Agent<ArrowRight className="h-4 w-4" /></Button></Link>
+            <Link to="/real-estate/test"><Button variant="gradient-secondary" className="gap-2">Test Real Estate Agent<ArrowRight className="h-4 w-4" /></Button></Link>
           </div>
         </motion.div>
       </div>

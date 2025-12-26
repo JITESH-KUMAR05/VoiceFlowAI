@@ -10,3 +10,4 @@ openai
 httpx
 pyaudio
 murf
+python-multipart

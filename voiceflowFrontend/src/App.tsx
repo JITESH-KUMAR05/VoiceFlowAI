@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 
 // B2B Sales Agent Pages
 import B2BDashboard from "./pages/b2b/B2BDashboard";
+import B2BTest from "./pages/b2b/B2BTest";
 import B2BLiveCall from "./pages/b2b/B2BLiveCall";
 import B2BCRM from "./pages/b2b/B2BCRM";
 import B2BUsers from "./pages/b2b/B2BUsers";
@@ -17,6 +18,7 @@ import B2BAnalytics from "./pages/b2b/B2BAnalytics";
 
 // Real Estate Agent Pages
 import RealEstateDashboard from "./pages/real-estate/RealEstateDashboard";
+import RealEstateTest from "./pages/real-estate/RealEstateTest";
 import RealEstateLiveCall from "./pages/real-estate/RealEstateLiveCall";
 import RealEstateCRM from "./pages/real-estate/RealEstateCRM";
 import RealEstateUsers from "./pages/real-estate/RealEstateUsers";
@@ -38,6 +40,7 @@ const App = () => (
           
           {/* B2B Sales Agent Routes */}
           <Route path="/b2b" element={<B2BDashboard />} />
+          <Route path="/b2b/test" element={<B2BTest />} />
           <Route path="/b2b/live-call" element={<B2BLiveCall />} />
           <Route path="/b2b/crm" element={<B2BCRM />} />
           <Route path="/b2b/crm/users" element={<B2BUsers />} />
@@ -47,6 +50,7 @@ const App = () => (
           
           {/* Real Estate Agent Routes */}
           <Route path="/real-estate" element={<RealEstateDashboard />} />
+          <Route path="/real-estate/test" element={<RealEstateTest />} />
           <Route path="/real-estate/live-call" element={<RealEstateLiveCall />} />
           <Route path="/real-estate/crm" element={<RealEstateCRM />} />
           <Route path="/real-estate/crm/users" element={<RealEstateUsers />} />
