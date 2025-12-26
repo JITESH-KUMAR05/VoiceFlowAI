@@ -28,7 +28,7 @@ const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
     { value: "en-IN-anisha", label: "Anisha" },
     { value: "en-IN-anusha", label: "Anusha" },
     { value: "en-IN-nikhil", label: "Nikhil" },
-    { value: "en-IN-ronnie", label: "Ronnie" },
+    { value: "en-US-ronnie", label: "Ronnie" },
     { value: "en-IN-samar", label: "Samar" },
     { value: "en-IN-tanushree", label: "Tanushree" },
   ],
@@ -38,21 +38,21 @@ const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
     { value: "hi-IN-khyati", label: "Khyati" },
     { value: "hi-IN-namrita", label: "Namrita" },
     { value: "hi-IN-sunaina", label: "Sunaina" },
-    { value: "hi-IN-zion", label: "Zion" },
+    { value: "en-US-zion", label: "Zion" },
   ],
   "te-IN": [
-    { value: "te-IN-josie", label: "Josie" },
-    { value: "te-IN-ronnie", label: "Ronnie" },
+    { value: "en-US-josie", label: "Josie" },
+    { value: "en-US-ronnie", label: "Ronnie" },
   ],
   "pa-IN": [
-    { value: "pa-IN-alicia", label: "Alicia" },
+    { value: "en-US-alicia", label: "Alicia" },
     { value: "pa-IN-harman", label: "Harman" },
-    { value: "pa-IN-lia", label: "Lia" },
-    { value: "pa-IN-zion", label: "Zion" },
+    { value: "en-US-lia", label: "Lia" },
+    { value: "en-US-zion", label: "Zion" },
   ],
   "gu-IN": [
-    { value: "gu-IN-lia", label: "Lia" },
-    { value: "gu-IN-ronnie", label: "Ronnie" },
+    { value: "en-US-lia", label: "Lia" },
+    { value: "en-US-ronnie", label: "Ronnie" },
   ],
 };
 
