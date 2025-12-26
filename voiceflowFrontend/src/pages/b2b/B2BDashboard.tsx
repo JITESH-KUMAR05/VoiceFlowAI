@@ -30,10 +30,10 @@ export default function B2BDashboard() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="flex flex-wrap gap-4 mb-8"
         >
-          <Link to="/b2b/live-call">
+          <Link to="/b2b/test">
             <Button variant="gradient" size="lg" className="gap-2">
               <Phone className="h-5 w-5" />
-              Start Live Call
+              Test Agent
             </Button>
           </Link>
           <Link to="/b2b/crm">
@@ -115,7 +115,7 @@ export default function B2BDashboard() {
           </div>
 
           <div className="mt-8 flex gap-4">
-            <Link to="/b2b/live-call">
+            <Link to="/b2b/test">
               <Button variant="gradient" className="gap-2">
                 Test B2B Sales Agent
                 <ArrowRight className="h-4 w-4" />

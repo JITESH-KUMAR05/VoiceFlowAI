@@ -1,12 +1,12 @@
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
-from config import Settings
+from config import settings
 
 class TwilioService:
     def __init__(self):
-        self.client = Client(Settings.TWILIO_ACCOUNT_SID, Settings.TWILIO_AUTH_TOKEN)
-        self.from_phone_number = Settings.TWILIO_PHONE_NUMBER
-        self.base_url = Settings.BASE_URL
+        self.client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        self.from_phone_number = settings.TWILIO_PHONE_NUMBER
+        self.base_url = settings.BASE_URL
     
     def initiate_call(self, to_number: str):
         """Initiates an outbound call using Twilio"""
@@ -17,19 +17,25 @@ class TwilioService:
             url=url,
             method="POST"
         )
-
         return call.sid
+
     
-    def create_response(self, audio_url: str):
+    def create_response(self, audio_url: str, language: str = "en-IN"):
         """Generates TwiML response for the call"""
         response = VoiceResponse()
-        response.play(audio_url)
-        gather = response.gather(
+        
+        if audio_url:
+            response.play(audio_url)
+            
+        # Listen for customer's reply in the CORRECT language
+        response.gather(
             input="speech",
             action=f"{self.base_url}/api/phone/twiml/process",
             method="POST",
-            language="en-IN",
-            speech_timeout="auto"
+            language=language, # <--- Dynamic Language
+            speechTimeout="auto"
         )
-        response.say("I didn't hear anything. Goodbye.")
+        
+        # If no input, just pause/end
+        response.say("I didn't hear anything.")
         return response.to_xml()
