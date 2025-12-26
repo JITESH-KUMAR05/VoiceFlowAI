@@ -13,49 +13,60 @@ interface AIConfigFormProps {
   onChange: (config: AIConfig) => void;
 }
 
+// [FIX] Updated Languages List
 const languages = [
-  { value: "en", label: "English" },
-  { value: "hi", label: "Hindi" },
-  { value: "te", label: "Telugu" },
-  { value: "ta", label: "Tamil" },
-  { value: "kn", label: "Kannada" },
+  { value: "en-IN", label: "English - India" },
+  { value: "hi-IN", label: "Hindi - India" },
+  { value: "te-IN", label: "Telugu - India" },
+  { value: "pa-IN", label: "Punjabi - India" },
+  { value: "gu-IN", label: "Gujarati - India" },
 ];
 
+// [FIX] Updated Voices List based on your JSON
 const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
-  en: [
-    { value: "en-IN-priya", label: "Priya (Female)" },
-    { value: "en-IN-rahul", label: "Rahul (Male)" },
-    { value: "en-IN-ananya", label: "Ananya (Female)" },
+  "en-IN": [
+    { value: "en-IN-anisha", label: "Anisha" },
+    { value: "en-IN-anusha", label: "Anusha" },
+    { value: "en-IN-nikhil", label: "Nikhil" },
+    { value: "en-IN-ronnie", label: "Ronnie" },
+    { value: "en-IN-samar", label: "Samar" },
+    { value: "en-IN-tanushree", label: "Tanushree" },
   ],
-  hi: [
-    { value: "hi-IN-kavya", label: "Kavya (Female)" },
-    { value: "hi-IN-arjun", label: "Arjun (Male)" },
+  "hi-IN": [
+    { value: "hi-IN-aman", label: "Aman" },
+    { value: "hi-IN-karan", label: "Karan" },
+    { value: "hi-IN-khyati", label: "Khyati" },
+    { value: "hi-IN-namrita", label: "Namrita" },
+    { value: "hi-IN-sunaina", label: "Sunaina" },
+    { value: "hi-IN-zion", label: "Zion" },
   ],
-  te: [
-    { value: "te-IN-sai", label: "Sai (Male)" },
-    { value: "te-IN-lakshmi", label: "Lakshmi (Female)" },
+  "te-IN": [
+    { value: "te-IN-josie", label: "Josie" },
+    { value: "te-IN-ronnie", label: "Ronnie" },
   ],
-  ta: [
-    { value: "ta-IN-karthik", label: "Karthik (Male)" },
-    { value: "ta-IN-priya", label: "Priya (Female)" },
+  "pa-IN": [
+    { value: "pa-IN-alicia", label: "Alicia" },
+    { value: "pa-IN-harman", label: "Harman" },
+    { value: "pa-IN-lia", label: "Lia" },
+    { value: "pa-IN-zion", label: "Zion" },
   ],
-  kn: [
-    { value: "kn-IN-vijay", label: "Vijay (Male)" },
-    { value: "kn-IN-divya", label: "Divya (Female)" },
+  "gu-IN": [
+    { value: "gu-IN-lia", label: "Lia" },
+    { value: "gu-IN-ronnie", label: "Ronnie" },
   ],
 };
 
 const models = [
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
 ];
 
 export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
-  const availableVoices = voicesByLanguage[config.language] || voicesByLanguage.en;
+  // Default to English if language not found
+  const availableVoices = voicesByLanguage[config.language] || voicesByLanguage["en-IN"];
 
   const handleLanguageChange = (language: string) => {
-    const newVoices = voicesByLanguage[language] || voicesByLanguage.en;
+    const newVoices = voicesByLanguage[language] || voicesByLanguage["en-IN"];
     onChange({
       ...config,
       language,
@@ -97,9 +108,9 @@ export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
             <Mic className="h-3.5 w-3.5" />
             Voice
           </Label>
-          <Select
-            value={config.voice}
-            onValueChange={(voice) => onChange({ ...config, voice })}
+          <Select 
+            value={config.voice} 
+            onValueChange={(v) => onChange({ ...config, voice: v })}
           >
             <SelectTrigger className="bg-muted/50 border-border">
               <SelectValue placeholder="Select voice" />
@@ -120,9 +131,9 @@ export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
             <Cpu className="h-3.5 w-3.5" />
             Model
           </Label>
-          <Select
-            value={config.model}
-            onValueChange={(model) => onChange({ ...config, model })}
+          <Select 
+            value={config.model} 
+            onValueChange={(m) => onChange({ ...config, model: m })}
           >
             <SelectTrigger className="bg-muted/50 border-border">
               <SelectValue placeholder="Select model" />

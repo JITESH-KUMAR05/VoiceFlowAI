@@ -147,17 +147,32 @@ async def call_start(CallSid: str = Form(...)):
     metadata = call_metadata.get(CallSid, {})
     greeting_text = metadata.get("greeting", "Hello.")
     voice_id = metadata.get("voice_id", "en-US-cooper")
+    language = metadata.get("language", "en-IN") # <--- Get Language
     
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
     audio_url = murf_service.generate_audio_url(greeting_text, voice_id=voice_id)
-    return Response(content=twilio_service.create_response(audio_url), media_type="application/xml")
+    
+    # [FIX] Pass language to Twilio
+    return Response(
+        content=twilio_service.create_response(audio_url, language=language), 
+        media_type="application/xml"
+    )
 
 @app.post("/api/phone/twiml/process")
 async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None)):
+    # Get metadata for language/voice
+    metadata = call_metadata.get(CallSid, {})
+    voice_id = metadata.get("voice_id", "en-US-cooper")
+    language = metadata.get("language", "en-IN") # <--- Get Language
+
     if not SpeechResult:
-        return Response(content=twilio_service.create_response(None), media_type="application/xml")
+        # If silence, listen again in the correct language
+        return Response(
+            content=twilio_service.create_response(None, language=language), 
+            media_type="application/xml"
+        )
 
     # 1. Update History
     history = conversations.get(CallSid, [])
@@ -171,12 +186,13 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
     conversations[CallSid] = history 
     
     # 4. Generate Audio
-    metadata = call_metadata.get(CallSid, {})
-    voice_id = metadata.get("voice_id", "en-US-cooper")
-    
     audio_url = murf_service.generate_audio_url(ai_text, voice_id=voice_id)
     
-    return Response(content=twilio_service.create_response(audio_url), media_type="application/xml")
+    # [FIX] Pass language to Twilio
+    return Response(
+        content=twilio_service.create_response(audio_url, language=language), 
+        media_type="application/xml"
+    )
 
 # --- END OF CALL & CRM ---
 

@@ -83,7 +83,7 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
           description: "Connecting to AI Agent...",
         });
         // Pass backend data (session_id, audio_url) to parent
-        onSubmit?.({ ...data, lead_name: formData.name });
+        onSubmit?.({ ...data, lead_name: formData.name, language: aiConfig.language });
       }
 
     } catch (error) {
