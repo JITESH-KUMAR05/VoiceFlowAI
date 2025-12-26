@@ -42,15 +42,51 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Prepare payload matching Backend Schema
+      const payload = {
+        phone_number: formData.phone,
+        lead_name: formData.name,
+        lead_email: formData.email,
+        lead_company: formData.company,
+        agent_type: variant === "b2b" ? "b2b" : "real_estate",
+        details: {
+          budget: formData.budget,
+          location: formData.location,
+          property_type: formData.propertyType,
+          is_rent: formData.isRent
+        }
+      };
 
-    toast.success("Call initiated successfully!", {
-      description: `Our AI agent will call you at ${formData.phone} shortly.`,
-    });
+      // Make actual API call
+      const response = await fetch("http://localhost:8000/api/phone/call", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    setIsSubmitting(false);
-    onSubmit?.(formData);
+      if (!response.ok) {
+        throw new Error("Failed to initiate call");
+      }
+
+      const data = await response.json();
+
+      toast.success("Call initiated successfully!", {
+        description: `Calling ${formData.name} at ${formData.phone}...`,
+      });
+      
+      onSubmit?.(formData);
+
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to initiate call", {
+        description: "Please check backend connection.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isPrimary = variant === "b2b";

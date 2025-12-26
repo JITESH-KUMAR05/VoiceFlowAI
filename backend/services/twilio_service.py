@@ -23,7 +23,8 @@ class TwilioService:
     def create_response(self, audio_url: str):
         """Generates TwiML response for the call"""
         response = VoiceResponse()
-        response.play(audio_url)
+        if(audio_url):
+            response.play(audio_url)
         gather = response.gather(
             input="speech",
             action=f"{self.base_url}/api/phone/twiml/process",

@@ -123,7 +123,7 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
     
     return Response(content=twilio_service.create_response(audio_url), media_type="application/xml")
 
-# --- NEW: Handle End of Call ---
+# --- Handle End of Call ---
 @app.post("/api/phone/status")
 async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
     """

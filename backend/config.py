@@ -1,5 +1,7 @@
 import os
 from pydantic import BaseModel
+from dotenv import load_dotenv
+load_dotenv()
 
 class Settings(BaseModel):
     # Azure OpenAI Configuration
@@ -18,3 +20,4 @@ class Settings(BaseModel):
 
     # Application 
     BASE_URL: str = os.getenv("BASE_URL","http://localhost:8000")
+settings = Settings()

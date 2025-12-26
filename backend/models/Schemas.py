@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict,Any, Opitonal, List, Optional, Optional
+from typing import Dict,Any, List, Optional, Optional
 
 class InitiateCallRequest(BaseModel):
     phone_number:str
