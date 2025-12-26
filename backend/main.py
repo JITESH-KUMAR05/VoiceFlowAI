@@ -3,6 +3,7 @@
     - Handles Streaming Audio for Ultra-Low Latency
 """
 
+import time
 from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse # <--- Added StreamingResponse
@@ -72,9 +73,12 @@ async def stream_audio(request_id: str):
         return Response(status_code=404)
 
     # 2. Get Generator from Murf
+    start_time = time.time()
     generator = murf_service.create_audio_stream(data["text"], data["voice_id"])
     if not generator:
          return Response(status_code=500)
+    
+    print(f"Murf TTS Init Latency: {time.time() - start_time:.4f}s")
 
     # 3. Stream Response (Chunked Transfer)
     return StreamingResponse(generator, media_type="audio/wav")

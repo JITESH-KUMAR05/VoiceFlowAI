@@ -1,3 +1,4 @@
+import time
 from openai import AsyncAzureOpenAI
 from config import settings
 
@@ -16,12 +17,15 @@ class OpenAIService:
         """
 
         try:
+            start_time = time.time()
             response= await self.client.chat.completions.create(
                 model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
                 messages=history,
                 max_tokens=150,
                 temperature=0.7,
             )
+            duration = time.time() - start_time
+            print(f"OpenAI Latency: {duration:.4f}s")
             return response.choices[0].message.content
         except Exception as e:
             print(f"OpenAIService Error: {e}")
