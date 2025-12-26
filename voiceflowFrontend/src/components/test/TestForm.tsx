@@ -1,32 +1,41 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, User, Mail, Building, MapPin, Banknote, Home } from "lucide-react";
+import { Phone, User, Mail, Building, MapPin, Banknote, Home, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { AgentType } from "@/types/agent";
+import { TestMode } from "./TestModeSelector";
+import { AIConfig, AIConfigForm } from "./AIConfigForm";
 
-interface CallInitiationFormProps {
-  variant: "b2b" | "real-estate";
-  onSubmit?: (data: FormData) => void;
+interface TestFormProps {
+  agentType: AgentType;
+  testMode: TestMode;
+  onSubmit?: (payload: TestPayload) => void;
 }
 
-interface FormData {
-  phone: string;
-  name: string;
-  email: string;
-  company?: string;
-  budget?: string;
-  location?: string;
-  propertyType?: string;
-  isRent?: boolean;
+export interface TestPayload {
+  phone_number?: string;
+  lead_name: string;
+  lead_email: string;
+  lead_company?: string;
+  agent_type: AgentType;
+  language: string;
+  voice: string;
+  model: string;
+  details?: {
+    budget?: string;
+    location?: string;
+    property_type?: string;
+    is_rent?: boolean;
+  };
 }
 
-export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProps) {
-  const [formData, setFormData] = useState<FormData>({
+export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
+  const [formData, setFormData] = useState({
     phone: "",
     name: "",
     email: "",
@@ -36,24 +45,64 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
     propertyType: "",
     isRent: false,
   });
+
+  const [aiConfig, setAIConfig] = useState<AIConfig>({
+    language: "en",
+    voice: "en-IN-priya",
+    model: "gpt-4o",
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isPrimary = agentType === "b2b";
+  const requiresPhone = testMode === "phone";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const payload: TestPayload = {
+      lead_name: formData.name,
+      lead_email: formData.email,
+      agent_type: agentType,
+      language: aiConfig.language,
+      voice: aiConfig.voice,
+      model: aiConfig.model,
+    };
+
+    if (requiresPhone) {
+      payload.phone_number = formData.phone;
+    }
+
+    if (agentType === "b2b" && formData.company) {
+      payload.lead_company = formData.company;
+    }
+
+    if (agentType === "real-estate") {
+      payload.details = {
+        budget: formData.budget,
+        location: formData.location,
+        property_type: formData.propertyType,
+        is_rent: formData.isRent,
+      };
+    }
+
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    toast.success("Call initiated successfully!", {
-      description: `Our AI agent will call you at ${formData.phone} shortly.`,
-    });
+    if (testMode === "phone") {
+      toast.success("Call initiated successfully!", {
+        description: `Our AI agent will call you at ${formData.phone} shortly.`,
+      });
+    } else {
+      toast.success("Browser session started!", {
+        description: "You can now talk to the AI agent in your browser.",
+      });
+    }
 
     setIsSubmitting(false);
-    onSubmit?.(formData);
+    onSubmit?.(payload);
   };
-
-  const isPrimary = variant === "b2b";
 
   return (
     <motion.form
@@ -63,25 +112,30 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
       onSubmit={handleSubmit}
       className="space-y-6"
     >
-      {/* Phone Number */}
-      <div className="space-y-2">
-        <Label htmlFor="phone" className="text-foreground">
-          Phone Number *
-        </Label>
-        <div className="relative">
-          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="+91 9876543210"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="pl-10 bg-muted/50 border-border focus:border-primary"
-            required
-          />
+      {/* AI Configuration */}
+      <AIConfigForm config={aiConfig} onChange={setAIConfig} />
+
+      {/* Phone Number - Only for Phone Testing */}
+      {requiresPhone && (
+        <div className="space-y-2">
+          <Label htmlFor="phone" className="text-foreground">
+            Phone Number *
+          </Label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+91 9876543210"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="pl-10 bg-muted/50 border-border focus:border-primary"
+              required
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">E.164 format recommended</p>
         </div>
-        <p className="text-xs text-muted-foreground">E.164 format recommended</p>
-      </div>
+      )}
 
       {/* Lead Name */}
       <div className="space-y-2">
@@ -122,7 +176,7 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
       </div>
 
       {/* B2B Specific: Company Name */}
-      {variant === "b2b" && (
+      {agentType === "b2b" && (
         <div className="space-y-2">
           <Label htmlFor="company" className="text-foreground">
             Company Name
@@ -142,7 +196,7 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
       )}
 
       {/* Real Estate Specific Fields */}
-      {variant === "real-estate" && (
+      {agentType === "real-estate" && (
         <>
           <div className="space-y-2">
             <Label htmlFor="budget" className="text-foreground">
@@ -238,12 +292,21 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
         {isSubmitting ? (
           <>
             <div className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            Initiating Call...
+            {testMode === "phone" ? "Initiating Call..." : "Starting Session..."}
           </>
         ) : (
           <>
-            <Phone className="h-5 w-5" />
-            {variant === "b2b" ? "Call Me Now – Test B2B Sales" : "Call Me Now – Real Estate Agent"}
+            {testMode === "phone" ? (
+              <>
+                <Phone className="h-5 w-5" />
+                {agentType === "b2b" ? "Call Me Now – Test B2B Sales" : "Call Me Now – Real Estate Agent"}
+              </>
+            ) : (
+              <>
+                <Send className="h-5 w-5" />
+                {agentType === "b2b" ? "Start Browser Session – B2B Sales" : "Start Browser Session – Real Estate"}
+              </>
+            )}
           </>
         )}
       </Button>

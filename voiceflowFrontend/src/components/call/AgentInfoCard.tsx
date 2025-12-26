@@ -1,26 +1,30 @@
 import { motion } from "framer-motion";
-import { User, Target, Mic, Globe } from "lucide-react";
+import { User, Target, Mic, Globe, Briefcase, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AgentInfoCardProps {
   agentName: string;
+  agentRole?: string;
   purpose: string;
   voice: string;
   languages: string[];
+  features?: string[];
   variant: "primary" | "secondary";
 }
 
 export function AgentInfoCard({
   agentName,
+  agentRole,
   purpose,
   voice,
   languages,
+  features,
   variant,
 }: AgentInfoCardProps) {
   const isPrimary = variant === "primary";
 
   const infoItems = [
-    { icon: User, label: "Agent Name", value: agentName },
+    { icon: User, label: "Agent Name", value: agentRole ? `${agentName} (${agentRole})` : agentName },
     { icon: Target, label: "Purpose", value: purpose },
     { icon: Mic, label: "Voice", value: voice },
     { icon: Globe, label: "Languages", value: languages.join(", ") },
@@ -85,6 +89,30 @@ export function AgentInfoCard({
           </motion.div>
         ))}
       </div>
+
+      {/* Features List */}
+      {features && features.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+            <Briefcase className={cn("h-4 w-4", isPrimary ? "text-primary" : "text-secondary")} />
+            Key Capabilities
+          </h4>
+          <div className="space-y-2">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.05 }}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <CheckCircle className={cn("h-3.5 w-3.5", isPrimary ? "text-primary" : "text-secondary")} />
+                {feature}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
