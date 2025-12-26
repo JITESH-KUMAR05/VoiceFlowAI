@@ -1,17 +1,14 @@
 """
     Main Backend Application
-    - Initializes FastAPI app
-    - Loads config
-    - Sets up Routes
-    - Handles Phone & Browser Agents
+    - Handles Streaming Audio for Ultra-Low Latency
 """
 
 from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse # <--- Added StreamingResponse
+from fastapi.staticfiles import StaticFiles 
 import uvicorn
 import os
-import json
 import uuid
 from dotenv import load_dotenv
 from datetime import datetime
@@ -26,6 +23,9 @@ load_dotenv()
 
 app = FastAPI(title="VoiceFlow AI Agent")
 
+# Mount static (still useful for assets, though we use streaming now)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Initialize Services
 twilio_service = TwilioService()
 openai_service = OpenAIService()
@@ -35,6 +35,9 @@ murf_service = MurfService()
 conversations = {}
 call_metadata = {}
 
+# [NEW] Audio Request Cache (Stores text to be spoken)
+audio_request_cache = {}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,11 +46,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- HELPER: Generate Stream URL ---
+def get_stream_url(text: str, voice_id: str):
+    """
+    Creates a temporary ID for the audio and returns a URL 
+    that will stream the audio when accessed.
+    """
+    request_id = str(uuid.uuid4())
+    # Store the details in RAM
+    audio_request_cache[request_id] = {
+        "text": text, 
+        "voice_id": voice_id
+    }
+    return f"{settings.BASE_URL}/api/audio/stream/{request_id}"
+
+# --- NEW: Streaming Endpoint ---
+@app.get("/api/audio/stream/{request_id}")
+async def stream_audio(request_id: str):
+    """
+    Streams audio chunks directly to the client (Browser/Twilio).
+    """
+    # 1. Retrieve text from cache (Pop to clean up memory)
+    data = audio_request_cache.pop(request_id, None)
+    if not data:
+        return Response(status_code=404)
+
+    # 2. Get Generator from Murf
+    generator = murf_service.create_audio_stream(data["text"], data["voice_id"])
+    if not generator:
+         return Response(status_code=500)
+
+    # 3. Stream Response (Chunked Transfer)
+    return StreamingResponse(generator, media_type="audio/wav")
+
+
 @app.get("/")
 async def root():
     return {"Status": "Backend is running", "Service": "VoiceFlow AI Agent"}
 
-# 1. Unified Initiate Endpoint (Phone + Browser)
+# 1. Unified Initiate Endpoint
 @app.post("/api/phone/call")
 async def initiate_call(request: InitiateCallRequest):
     session_id = str(uuid.uuid4())
@@ -59,7 +96,7 @@ async def initiate_call(request: InitiateCallRequest):
     if request.details:
         details_text = ", ".join([f"{k.replace('_', ' ').title()}: {v}" for k, v in request.details.items() if v])
 
-    # B. Define Persona & Greeting
+    # B. Define Persona
     lang_instruction = f"You are speaking in {request.language}."
     
     if request.agent_type == "real_estate":
@@ -83,13 +120,11 @@ async def initiate_call(request: InitiateCallRequest):
 
     # C. Handle Modes
     if request.phone_number:
-        # --- PHONE MODE ---
         session_id = twilio_service.initiate_call(request.phone_number)
         status = "call_initiated"
     else:
-        # --- BROWSER MODE ---
-        # Generate greeting audio immediately so the browser can play it
-        greeting_audio_url = murf_service.generate_audio_url(greeting, voice_id=request.voice_id)
+        # [FIX] Use Streaming URL
+        greeting_audio_url = get_stream_url(greeting, request.voice_id)
 
     # D. Store in RAM
     conversations[session_id] = [{"role": "system", "content": system_prompt}]
@@ -106,55 +141,47 @@ async def initiate_call(request: InitiateCallRequest):
         "status": status, 
         "call_sid": session_id, 
         "greeting": greeting,
-        "greeting_audio_url": greeting_audio_url # Frontend plays this on load
+        "greeting_audio_url": greeting_audio_url 
     }
-# --- BROWSER TESTING ROUTES ---
 
+# --- BROWSER CHAT ---
 @app.post("/api/browser/chat")
 async def browser_chat(request: BrowserChatRequest):
-    """
-    Endpoint for Browser-based testing (No Twilio).
-    Frontend sends text -> Backend returns AI Text + Audio URL.
-    """
     sid = request.session_id
     
-    # 1. Update History
     history = conversations.get(sid, [])
     history.append({"role": "user", "content": request.message})
     
-    # 2. Get AI Response
     ai_text = await openai_service.generate_response(history)
     
-    # 3. Update History
     history.append({"role": "assistant", "content": ai_text})
     conversations[sid] = history
     
-    # 4. Generate Audio (Using the selected voice from metadata)
     meta = call_metadata.get(sid, {})
     voice_id = meta.get("voice_id", "en-US-cooper")
     
-    audio_url = murf_service.generate_audio_url(ai_text, voice_id=voice_id)
+    # [FIX] Use Streaming URL
+    audio_url = get_stream_url(ai_text, voice_id)
     
     return {
         "text": ai_text,
         "audio_url": audio_url
     }
 
-# --- PHONE (TWILIO) ROUTES ---
-
+# --- PHONE ROUTES ---
 @app.post("/api/phone/twiml/start")
 async def call_start(CallSid: str = Form(...)):
     metadata = call_metadata.get(CallSid, {})
     greeting_text = metadata.get("greeting", "Hello.")
     voice_id = metadata.get("voice_id", "en-US-cooper")
-    language = metadata.get("language", "en-IN") # <--- Get Language
+    language = metadata.get("language", "en-IN")
     
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
-    audio_url = murf_service.generate_audio_url(greeting_text, voice_id=voice_id)
+    # [FIX] Use Streaming URL
+    audio_url = get_stream_url(greeting_text, voice_id)
     
-    # [FIX] Pass language to Twilio
     return Response(
         content=twilio_service.create_response(audio_url, language=language), 
         media_type="application/xml"
@@ -162,45 +189,35 @@ async def call_start(CallSid: str = Form(...)):
 
 @app.post("/api/phone/twiml/process")
 async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None)):
-    # Get metadata for language/voice
     metadata = call_metadata.get(CallSid, {})
     voice_id = metadata.get("voice_id", "en-US-cooper")
-    language = metadata.get("language", "en-IN") # <--- Get Language
+    language = metadata.get("language", "en-IN")
 
     if not SpeechResult:
-        # If silence, listen again in the correct language
         return Response(
             content=twilio_service.create_response(None, language=language), 
             media_type="application/xml"
         )
 
-    # 1. Update History
     history = conversations.get(CallSid, [])
     history.append({"role": "user", "content": SpeechResult})
     
-    # 2. Get AI Response
     ai_text = await openai_service.generate_response(history)
     
-    # 3. Update History
     history.append({"role": "assistant", "content": ai_text})
     conversations[CallSid] = history 
     
-    # 4. Generate Audio
-    audio_url = murf_service.generate_audio_url(ai_text, voice_id=voice_id)
+    # [FIX] Use Streaming URL
+    audio_url = get_stream_url(ai_text, voice_id)
     
-    # [FIX] Pass language to Twilio
     return Response(
         content=twilio_service.create_response(audio_url, language=language), 
         media_type="application/xml"
     )
 
-# --- END OF CALL & CRM ---
-
+# --- END OF CALL ---
 @app.post("/api/phone/status")
 async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
-    """
-    Twilio calls this when the call ends.
-    """
     if CallStatus in ['completed', 'failed', 'busy', 'no-answer']:
         print(f"Call {CallSid} ended: {CallStatus}")
         
@@ -219,17 +236,6 @@ async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
             "timestamp": datetime.now().isoformat()
         }
         
-        # --- CRM INTEGRATION POINT ---
-        # In the future, we will call Salesforce API here.
-        # Example:
-        # crm_service.update_lead(
-        #     email=metadata['lead_data']['lead_email'], 
-        #     status="Qualified" if len(history) > 4 else "Attempted",
-        #     notes=json.dumps(history)
-        # )
-        # -----------------------------
-        
-        # Save to Local JSON
         filename = f"database/{metadata.get('agent_type', 'general')}_records.json"
         os.makedirs("database", exist_ok=True)
         
@@ -242,7 +248,6 @@ async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
             data.append(record)
             with open(filename, 'w') as f:
                 json.dump(data, f, indent=2)
-            print(f"Saved record to {filename}")
         except Exception as e:
             print(f"Error saving record: {e}")
 

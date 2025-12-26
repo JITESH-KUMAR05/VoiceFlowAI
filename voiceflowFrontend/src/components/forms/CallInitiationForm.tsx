@@ -15,41 +15,49 @@ const VOICE_OPTIONS = [
     code: "en-IN",
     voices: [
       { id: "en-IN-anisha", name: "Anisha" },
-      { id: "en-IN-ronnie", name: "Ronnie (Male)" },
-      { id: "en-IN-samar", name: "Samar (Male)" }
+      { id: "en-IN-anusha", name: "Anusha" },
+      { id: "en-IN-nikhil", name: "Nikhil" },
+      { id: "en-US-ronnie", name: "Ronnie" }, // Changed from en-IN-ronnie
+      { id: "en-IN-samar", name: "Samar" },
+      { id: "en-IN-tanushree", name: "Tanushree" },
     ]
   },
   {
     language: "Hindi - India",
     code: "hi-IN",
     voices: [
-      { id: "hi-IN-aman", name: "Aman (Male)" },
-      { id: "hi-IN-sunaina", name: "Sunaina (Female)" },
-      { id: "hi-IN-zion", name: "Zion (Male)" }
+      { id: "hi-IN-aman", name: "Aman" },
+      { id: "hi-IN-karan", name: "Karan" },
+      { id: "hi-IN-khyati", name: "Khyati" },
+      { id: "hi-IN-namrita", name: "Namrita" },
+      { id: "hi-IN-sunaina", name: "Sunaina" },
+      { id: "en-US-zion", name: "Zion" }, // Changed from hi-IN-zion
     ]
   },
   {
     language: "Telugu - India",
     code: "te-IN",
     voices: [
-      { id: "te-IN-josie", name: "Josie (Female)" },
-      { id: "te-IN-ronnie", name: "Ronnie (Male)" }
+      { id: "en-US-josie", name: "Josie" }, // Changed from te-IN-josie
+      { id: "en-US-ronnie", name: "Ronnie" }, // Changed from te-IN-ronnie
     ]
   },
   {
     language: "Punjabi - India",
     code: "pa-IN",
     voices: [
-      { id: "pa-IN-harman", name: "Harman (Male)" },
-      { id: "pa-IN-lia", name: "Lia (Female)" }
+      { id: "en-US-alicia", name: "Alicia" }, // Changed from pa-IN-alicia
+      { id: "pa-IN-harman", name: "Harman" },
+      { id: "en-US-lia", name: "Lia" }, // Changed from pa-IN-lia
+      { id: "en-US-zion", name: "Zion" }, // Changed from pa-IN-zion
     ]
   },
   {
     language: "Gujarati - India",
     code: "gu-IN",
     voices: [
-      { id: "gu-IN-lia", name: "Lia (Female)" },
-      { id: "gu-IN-ronnie", name: "Ronnie (Male)" }
+      { id: "en-US-lia", name: "Lia" }, // Changed from gu-IN-lia
+      { id: "en-US-ronnie", name: "Ronnie" }, // Changed from gu-IN-ronnie
     ]
   }
 ];
