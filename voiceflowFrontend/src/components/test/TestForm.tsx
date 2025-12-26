@@ -14,24 +14,7 @@ import { AIConfig, AIConfigForm } from "./AIConfigForm";
 interface TestFormProps {
   agentType: AgentType;
   testMode: TestMode;
-  onSubmit?: (payload: TestPayload) => void;
-}
-
-export interface TestPayload {
-  phone_number?: string;
-  lead_name: string;
-  lead_email: string;
-  lead_company?: string;
-  agent_type: AgentType;
-  language: string;
-  voice: string;
-  model: string;
-  details?: {
-    budget?: string;
-    location?: string;
-    property_type?: string;
-    is_rent?: boolean;
-  };
+  onSubmit?: (data: any) => void;
 }
 
 export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
@@ -47,8 +30,8 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
   });
 
   const [aiConfig, setAIConfig] = useState<AIConfig>({
-    language: "en",
-    voice: "en-IN-priya",
+    language: "en-IN",
+    voice: "en-IN-anisha",
     model: "gpt-4o",
   });
 
@@ -61,47 +44,56 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const payload: TestPayload = {
-      lead_name: formData.name,
-      lead_email: formData.email,
-      agent_type: agentType,
-      language: aiConfig.language,
-      voice: aiConfig.voice,
-      model: aiConfig.model,
-    };
-
-    if (requiresPhone) {
-      payload.phone_number = formData.phone;
-    }
-
-    if (agentType === "b2b" && formData.company) {
-      payload.lead_company = formData.company;
-    }
-
-    if (agentType === "real-estate") {
-      payload.details = {
-        budget: formData.budget,
-        location: formData.location,
-        property_type: formData.propertyType,
-        is_rent: formData.isRent,
+    try {
+      // 1. Construct Payload
+      const payload = {
+        phone_number: requiresPhone ? formData.phone : null,
+        lead_name: formData.name,
+        lead_email: formData.email,
+        lead_company: formData.company,
+        agent_type: agentType,
+        language: aiConfig.language,
+        voice_id: aiConfig.voice,
+        details: agentType === "real-estate" ? {
+          budget: formData.budget,
+          location: formData.location,
+          property_type: formData.propertyType,
+          is_rent: formData.isRent,
+        } : {}
       };
-    }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    if (testMode === "phone") {
-      toast.success("Call initiated successfully!", {
-        description: `Our AI agent will call you at ${formData.phone} shortly.`,
+      // 2. Call Backend
+      const response = await fetch("http://localhost:8000/api/phone/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-    } else {
-      toast.success("Browser session started!", {
-        description: "You can now talk to the AI agent in your browser.",
-      });
-    }
 
-    setIsSubmitting(false);
-    onSubmit?.(payload);
+      if (!response.ok) throw new Error("Failed to initiate session");
+
+      const data = await response.json();
+
+      // 3. Handle Success
+      if (testMode === "phone") {
+        toast.success("Call initiated successfully!", {
+          description: `Calling ${formData.phone}...`,
+        });
+      } else {
+        toast.success("Session Started!", {
+          description: "Connecting to AI Agent...",
+        });
+        // Pass backend data (session_id, audio_url) to parent
+        onSubmit?.({ ...data, lead_name: formData.name });
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Connection Failed", {
+        description: "Could not connect to the backend server.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -130,10 +122,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="pl-10 bg-muted/50 border-border focus:border-primary"
-              required
+              required={requiresPhone}
             />
           </div>
-          <p className="text-xs text-muted-foreground">E.164 format recommended</p>
         </div>
       )}
 
@@ -239,45 +230,6 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
               />
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="propertyType" className="text-foreground">
-              Property Type *
-            </Label>
-            <div className="relative">
-              <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Select
-                value={formData.propertyType}
-                onValueChange={(value) => setFormData({ ...formData, propertyType: value })}
-              >
-                <SelectTrigger className="pl-10 bg-muted/50 border-border">
-                  <SelectValue placeholder="Select property type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1bhk">1 BHK Apartment</SelectItem>
-                  <SelectItem value="2bhk">2 BHK Apartment</SelectItem>
-                  <SelectItem value="3bhk">3 BHK Apartment</SelectItem>
-                  <SelectItem value="villa">Villa / Independent House</SelectItem>
-                  <SelectItem value="plot">Plot / Land</SelectItem>
-                  <SelectItem value="commercial">Commercial Space</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border">
-            <div>
-              <Label htmlFor="isRent" className="text-foreground font-medium">
-                Looking to Rent?
-              </Label>
-              <p className="text-xs text-muted-foreground">Toggle on if you're looking to rent instead of buy</p>
-            </div>
-            <Switch
-              id="isRent"
-              checked={formData.isRent}
-              onCheckedChange={(checked) => setFormData({ ...formData, isRent: checked })}
-            />
-          </div>
         </>
       )}
 
@@ -298,13 +250,13 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
           <>
             {testMode === "phone" ? (
               <>
-                <Phone className="h-5 w-5" />
-                {agentType === "b2b" ? "Call Me Now – Test B2B Sales" : "Call Me Now – Real Estate Agent"}
+                <Phone className="h-5 w-5 mr-2" />
+                {agentType === "b2b" ? "Call Me Now" : "Call Me Now"}
               </>
             ) : (
               <>
-                <Send className="h-5 w-5" />
-                {agentType === "b2b" ? "Start Browser Session – B2B Sales" : "Start Browser Session – Real Estate"}
+                <Send className="h-5 w-5 mr-2" />
+                Start Browser Session
               </>
             )}
           </>
