@@ -1,251 +1,264 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, User, Mail, Building, MapPin, Banknote, Home } from "lucide-react";
+import { Phone, User, Building2, MapPin, Wallet, Home, Globe, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
+// --- VOICE DATA ---
+const VOICE_OPTIONS = [
+  {
+    language: "English - India",
+    code: "en-IN",
+    voices: [
+      { id: "en-IN-anisha", name: "Anisha" },
+      { id: "en-IN-ronnie", name: "Ronnie (Male)" },
+      { id: "en-IN-samar", name: "Samar (Male)" }
+    ]
+  },
+  {
+    language: "Hindi - India",
+    code: "hi-IN",
+    voices: [
+      { id: "hi-IN-aman", name: "Aman (Male)" },
+      { id: "hi-IN-sunaina", name: "Sunaina (Female)" },
+      { id: "hi-IN-zion", name: "Zion (Male)" }
+    ]
+  },
+  {
+    language: "Telugu - India",
+    code: "te-IN",
+    voices: [
+      { id: "te-IN-josie", name: "Josie (Female)" },
+      { id: "te-IN-ronnie", name: "Ronnie (Male)" }
+    ]
+  },
+  {
+    language: "Punjabi - India",
+    code: "pa-IN",
+    voices: [
+      { id: "pa-IN-harman", name: "Harman (Male)" },
+      { id: "pa-IN-lia", name: "Lia (Female)" }
+    ]
+  },
+  {
+    language: "Gujarati - India",
+    code: "gu-IN",
+    voices: [
+      { id: "gu-IN-lia", name: "Lia (Female)" },
+      { id: "gu-IN-ronnie", name: "Ronnie (Male)" }
+    ]
+  }
+];
 
 interface CallInitiationFormProps {
   variant: "b2b" | "real-estate";
-  onSubmit?: (data: FormData) => void;
-}
-
-interface FormData {
-  phone: string;
-  name: string;
-  email: string;
-  company?: string;
-  budget?: string;
-  location?: string;
-  propertyType?: string;
-  isRent?: boolean;
+  onSubmit?: (data: any) => void;
 }
 
 export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProps) {
-  const [formData, setFormData] = useState<FormData>({
+  const [mode, setMode] = useState<"phone" | "browser">("phone");
+  const [selectedLang, setSelectedLang] = useState("en-IN");
+  
+  const [formData, setFormData] = useState({
     phone: "",
     name: "",
     email: "",
     company: "",
     budget: "",
     location: "",
-    propertyType: "",
-    isRent: false,
+    voice_id: "en-IN-anisha" // Default
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get voices for selected language
+  const currentVoices = VOICE_OPTIONS.find(v => v.code === selectedLang)?.voices || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const payload = {
+        phone_number: mode === "phone" ? formData.phone : null, // Null for browser
+        lead_name: formData.name,
+        lead_email: formData.email,
+        lead_company: formData.company,
+        agent_type: variant === "b2b" ? "b2b" : "real_estate",
+        language: VOICE_OPTIONS.find(v => v.code === selectedLang)?.language || "English",
+        voice_id: formData.voice_id,
+        details: {
+          budget: formData.budget,
+          location: formData.location,
+        }
+      };
 
-    toast.success("Call initiated successfully!", {
-      description: `Our AI agent will call you at ${formData.phone} shortly.`,
-    });
+      const response = await fetch("http://localhost:8000/api/phone/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    setIsSubmitting(false);
-    onSubmit?.(formData);
+      if (!response.ok) throw new Error("Failed");
+
+      const data = await response.json();
+
+      if (mode === "phone") {
+        toast.success("Call Initiated", { description: "Your phone should ring shortly." });
+      } else {
+        toast.success("Session Started", { description: "Connecting to AI Agent..." });
+        // Pass the session data back to parent to open the Live Interface
+        onSubmit?.({ ...data, mode: "browser" }); 
+      }
+
+    } catch (error) {
+      toast.error("Connection Failed", { description: "Check backend." });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  const isPrimary = variant === "b2b";
 
   return (
     <motion.form
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
       onSubmit={handleSubmit}
-      className="space-y-6"
+      className="space-y-5"
     >
-      {/* Phone Number */}
-      <div className="space-y-2">
-        <Label htmlFor="phone" className="text-foreground">
-          Phone Number *
-        </Label>
-        <div className="relative">
-          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="+91 9876543210"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="pl-10 bg-muted/50 border-border focus:border-primary"
-            required
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">E.164 format recommended</p>
+      {/* Mode Selection */}
+      <div className="bg-muted/30 p-1 rounded-lg flex gap-1 mb-4">
+        <Button
+          type="button"
+          variant={mode === "phone" ? "secondary" : "ghost"}
+          className="flex-1 h-9"
+          onClick={() => setMode("phone")}
+        >
+          <Phone className="w-4 h-4 mr-2" /> Phone Call
+        </Button>
+        <Button
+          type="button"
+          variant={mode === "browser" ? "secondary" : "ghost"}
+          className="flex-1 h-9"
+          onClick={() => setMode("browser")}
+        >
+          <Mic className="w-4 h-4 mr-2" /> Browser Demo
+        </Button>
       </div>
 
-      {/* Lead Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name" className="text-foreground">
-          Lead Name *
-        </Label>
-        <div className="relative">
-          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="name"
-            type="text"
-            placeholder="John Doe"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="pl-10 bg-muted/50 border-border focus:border-primary"
-            required
-          />
-        </div>
-      </div>
-
-      {/* Email */}
-      <div className="space-y-2">
-        <Label htmlFor="email" className="text-foreground">
-          Email Address *
-        </Label>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="email"
-            type="email"
-            placeholder="john@company.com"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="pl-10 bg-muted/50 border-border focus:border-primary"
-            required
-          />
-        </div>
-      </div>
-
-      {/* B2B Specific: Company Name */}
-      {variant === "b2b" && (
+      {/* Language & Voice Selection */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="company" className="text-foreground">
-            Company Name
-          </Label>
+          <Label>Language</Label>
+          <Select value={selectedLang} onValueChange={setSelectedLang}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VOICE_OPTIONS.map((lang) => (
+                <SelectItem key={lang.code} value={lang.code}>{lang.language}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Voice</Label>
+          <Select 
+            value={formData.voice_id} 
+            onValueChange={(v) => setFormData({...formData, voice_id: v})}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currentVoices.map((voice) => (
+                <SelectItem key={voice.id} value={voice.id}>{voice.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Common Fields */}
+      <div className="space-y-2">
+        <Label>Name</Label>
+        <div className="relative">
+          <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input 
+            className="pl-9" 
+            placeholder="Your Name"
+            value={formData.name}
+            onChange={e => setFormData({...formData, name: e.target.value})}
+            required 
+          />
+        </div>
+      </div>
+
+      {/* Phone Number (Only for Phone Mode) */}
+      {mode === "phone" && (
+        <div className="space-y-2">
+          <Label>Phone Number</Label>
           <div className="relative">
-            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="company"
-              type="text"
-              placeholder="Acme Inc."
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              className="pl-10 bg-muted/50 border-border focus:border-primary"
+            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              className="pl-9" 
+              placeholder="+91 9876543210"
+              value={formData.phone}
+              onChange={e => setFormData({...formData, phone: e.target.value})}
+              required 
             />
           </div>
         </div>
       )}
 
-      {/* Real Estate Specific Fields */}
-      {variant === "real-estate" && (
-        <>
+      {/* Agent Specific Fields */}
+      {variant === "real-estate" ? (
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="budget" className="text-foreground">
-              Budget Range *
-            </Label>
+            <Label>Location</Label>
             <div className="relative">
-              <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Select
-                value={formData.budget}
-                onValueChange={(value) => setFormData({ ...formData, budget: value })}
-              >
-                <SelectTrigger className="pl-10 bg-muted/50 border-border">
-                  <SelectValue placeholder="Select budget range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="under-50L">Under ₹50 Lakhs</SelectItem>
-                  <SelectItem value="50L-1Cr">₹50 Lakhs - ₹1 Crore</SelectItem>
-                  <SelectItem value="1Cr-2Cr">₹1 Crore - ₹2 Crore</SelectItem>
-                  <SelectItem value="2Cr-5Cr">₹2 Crore - ₹5 Crore</SelectItem>
-                  <SelectItem value="above-5Cr">Above ₹5 Crore</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="location" className="text-foreground">
-              Preferred Location *
-            </Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="location"
-                type="text"
-                placeholder="Mumbai, Bangalore, etc."
+              <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                className="pl-9" 
+                placeholder="Mumbai"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="pl-10 bg-muted/50 border-border focus:border-primary"
-                required
+                onChange={e => setFormData({...formData, location: e.target.value})}
               />
             </div>
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="propertyType" className="text-foreground">
-              Property Type *
-            </Label>
+            <Label>Budget</Label>
             <div className="relative">
-              <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Select
-                value={formData.propertyType}
-                onValueChange={(value) => setFormData({ ...formData, propertyType: value })}
-              >
-                <SelectTrigger className="pl-10 bg-muted/50 border-border">
-                  <SelectValue placeholder="Select property type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1bhk">1 BHK Apartment</SelectItem>
-                  <SelectItem value="2bhk">2 BHK Apartment</SelectItem>
-                  <SelectItem value="3bhk">3 BHK Apartment</SelectItem>
-                  <SelectItem value="villa">Villa / Independent House</SelectItem>
-                  <SelectItem value="plot">Plot / Land</SelectItem>
-                  <SelectItem value="commercial">Commercial Space</SelectItem>
-                </SelectContent>
-              </Select>
+              <Wallet className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                className="pl-9" 
+                placeholder="2 Cr"
+                value={formData.budget}
+                onChange={e => setFormData({...formData, budget: e.target.value})}
+              />
             </div>
           </div>
-
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border">
-            <div>
-              <Label htmlFor="isRent" className="text-foreground font-medium">
-                Looking to Rent?
-              </Label>
-              <p className="text-xs text-muted-foreground">Toggle on if you're looking to rent instead of buy</p>
-            </div>
-            <Switch
-              id="isRent"
-              checked={formData.isRent}
-              onCheckedChange={(checked) => setFormData({ ...formData, isRent: checked })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label>Company</Label>
+          <div className="relative">
+            <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              className="pl-9" 
+              placeholder="Company Name"
+              value={formData.company}
+              onChange={e => setFormData({...formData, company: e.target.value})}
             />
           </div>
-        </>
+        </div>
       )}
 
-      {/* Submit Button */}
-      <Button
-        type="submit"
-        variant={isPrimary ? "gradient" : "gradient-secondary"}
-        size="xl"
-        className="w-full"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? (
-          <>
-            <div className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            Initiating Call...
-          </>
-        ) : (
-          <>
-            <Phone className="h-5 w-5" />
-            {variant === "b2b" ? "Call Me Now – Test B2B Sales" : "Call Me Now – Real Estate Agent"}
-          </>
-        )}
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Connecting..." : mode === "phone" ? "Call Me Now" : "Start Conversation"}
       </Button>
     </motion.form>
   );

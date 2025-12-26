@@ -50,20 +50,16 @@ async def root():
 # 1. Unified Initiate Endpoint (Phone + Browser)
 @app.post("/api/phone/call")
 async def initiate_call(request: InitiateCallRequest):
-    session_id = str(uuid.uuid4()) # Default ID for browser session
+    session_id = str(uuid.uuid4())
     status = "browser_session_started"
+    greeting_audio_url = None
 
-    # A. If Phone Number exists -> Initiate Twilio Call
-    if request.phone_number:
-        session_id = twilio_service.initiate_call(request.phone_number)
-        status = "call_initiated"
-
-    # B. Construct Context
+    # A. Construct Context
     details_text = ""
     if request.details:
         details_text = ", ".join([f"{k.replace('_', ' ').title()}: {v}" for k, v in request.details.items() if v])
 
-    # C. Define Persona based on Agent Type & Language
+    # B. Define Persona & Greeting
     lang_instruction = f"You are speaking in {request.language}."
     
     if request.agent_type == "real_estate":
@@ -85,6 +81,16 @@ async def initiate_call(request: InitiateCallRequest):
         )
         greeting = f"Hi {request.lead_name}, this is Alex from VoiceFlow. Do you have a minute?"
 
+    # C. Handle Modes
+    if request.phone_number:
+        # --- PHONE MODE ---
+        session_id = twilio_service.initiate_call(request.phone_number)
+        status = "call_initiated"
+    else:
+        # --- BROWSER MODE ---
+        # Generate greeting audio immediately so the browser can play it
+        greeting_audio_url = murf_service.generate_audio_url(greeting, voice_id=request.voice_id)
+
     # D. Store in RAM
     conversations[session_id] = [{"role": "system", "content": system_prompt}]
     call_metadata[session_id] = {
@@ -98,10 +104,10 @@ async def initiate_call(request: InitiateCallRequest):
     
     return {
         "status": status, 
-        "call_sid": session_id, # Frontend uses this ID for browser chat
-        "greeting": greeting    # Frontend can display/speak this immediately
+        "call_sid": session_id, 
+        "greeting": greeting,
+        "greeting_audio_url": greeting_audio_url # Frontend plays this on load
     }
-
 # --- BROWSER TESTING ROUTES ---
 
 @app.post("/api/browser/chat")

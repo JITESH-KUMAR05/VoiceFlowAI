@@ -9,6 +9,9 @@ class InitiateCallRequest(BaseModel):
     agent_type:str
     details: Optional[Dict[str, Any]] = {} 
 
+class BrowserChatRequest(BaseModel):
+    session_id: str
+    message: str
 class CallRecord(BaseModel):
     call_id:str
     phone_number:str
