@@ -1,13 +1,13 @@
 from openai import AsyncAzureOpenAI
-from config import Settings
+from config import settings
 
 class OpenAIService:
 
     def __init__(self):
         self.client = AsyncAzureOpenAI(
-            api_key=Settings.AZURE_OPENAI_API_KEY,
-            api_version=Settings.AZURE_OPENAI_API_VERSION,
-            azure_endpoint=Settings.AZURE_OPENAI_ENDPOINT,
+            api_key=settings.AZURE_OPENAI_API_KEY,
+            api_version=settings.AZURE_OPENAI_API_VERSION,
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
         )
     
     async def generate_response(self, history: list):
@@ -17,7 +17,7 @@ class OpenAIService:
 
         try:
             response= await self.client.chat.completions.create(
-                model=Settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+                model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
                 messages=history,
                 max_tokens=150,
                 temperature=0.7,

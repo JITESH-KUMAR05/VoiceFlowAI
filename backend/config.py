@@ -11,7 +11,7 @@ class Settings(BaseModel):
     AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION","2023-05-15")
 
     # Murf AI configuration
-    MURFAI_API_KEY: str = os.getenv("MURF_API_KEY","")
+    MURF_API_KEY: str = os.getenv("MURF_API_KEY","")
 
     # Twilio 
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID","")

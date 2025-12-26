@@ -1,12 +1,12 @@
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
-from config import Settings
+from config import settings
 
 class TwilioService:
     def __init__(self):
-        self.client = Client(Settings.TWILIO_ACCOUNT_SID, Settings.TWILIO_AUTH_TOKEN)
-        self.from_phone_number = Settings.TWILIO_PHONE_NUMBER
-        self.base_url = Settings.BASE_URL
+        self.client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        self.from_phone_number = settings.TWILIO_PHONE_NUMBER
+        self.base_url = settings.BASE_URL
     
     def initiate_call(self, to_number: str):
         """Initiates an outbound call using Twilio"""

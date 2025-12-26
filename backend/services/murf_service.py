@@ -1,13 +1,12 @@
 from murf import Murf
-from config import Settings
+from config import settings
 
-settings = Settings()
 
 class MurfService:
     
     def __init__(self):
         self.client = Murf(
-        api_key=settings.MURFAI_API_KEY
+        api_key=settings.MURF_API_KEY
     )
     
     def generate_audio_url(self, text: str, voice_id: str = "en-IN-priya"):
