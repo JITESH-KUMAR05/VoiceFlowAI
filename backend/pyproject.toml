@@ -14,6 +14,7 @@ dependencies = [
     "pydub>=0.25.1",
     "python-multipart>=0.0.21",
     "requests>=2.32.5",
+    "simple-salesforce>=1.12.9",
     "twilio>=9.9.0",
     "uvicorn[standard]>=0.40.0",
 ]
