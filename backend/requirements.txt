@@ -11,3 +11,4 @@ httpx
 pyaudio
 murf
 python-multipart
+simple-salesforce

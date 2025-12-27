@@ -20,4 +20,16 @@ class Settings(BaseModel):
 
     # Application 
     BASE_URL: str = os.getenv("BASE_URL","http://localhost:8000")
+
+    # Salesforce
+    SALESFORCE_USERNAME: str = os.getenv("SALESFORCE_USERNAME", "")
+    SALESFORCE_PASSWORD: str = os.getenv("SALESFORCE_PASSWORD", "")
+    SALESFORCE_TOKEN: str = os.getenv("SALESFORCE_TOKEN", "")
+    SALESFORCE_DOMAIN: str = os.getenv("SALESFORCE_DOMAIN", "login")
+
+    # Email
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
 settings = Settings()
