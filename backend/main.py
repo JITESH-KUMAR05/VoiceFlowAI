@@ -6,7 +6,7 @@
 import time
 from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse # <--- Added StreamingResponse
+from fastapi.responses import Response, StreamingResponse 
 from fastapi.staticfiles import StaticFiles 
 import uvicorn
 import os
@@ -20,6 +20,9 @@ from models.Schemas import InitiateCallRequest, BrowserChatRequest
 from services.twilio_service import TwilioService
 from services.openai_service import OpenAIService
 from services.murf_service import MurfService
+# [NEW] Import new services
+from services.salesforce_service import SalesforceService
+from services.email_service import EmailService
 
 load_dotenv()
 
@@ -32,6 +35,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 twilio_service = TwilioService()
 openai_service = OpenAIService()
 murf_service = MurfService()
+# [NEW] Initialize
+sf_service = SalesforceService()
+email_service = EmailService()
 
 # In-memory storage
 conversations = {}
@@ -263,41 +269,67 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
 
 # --- END OF CALL ---
 @app.post("/api/phone/status")
-async def call_status(CallSid: str = Form(...), CallStatus: str = Form(...)):
+async def call_status(background_tasks: BackgroundTasks,CallSid: str = Form(...), CallStatus: str = Form(...)):
     if CallStatus in ['completed', 'failed', 'busy', 'no-answer']:
         print(f"Call {CallSid} ended: {CallStatus}")
         
+        # Retrieve and remove session data
         history = conversations.pop(CallSid, []) 
         metadata = call_metadata.pop(CallSid, {}) 
         
         if not history:
-            return
+            return {"status": "no_history"}
+        
+        # [NEW] Define the background processing function
+        async def process_post_call_actions(history, metadata):
+            lead_data = metadata.get("lead_data", {})
+            lead_name = lead_data.get("lead_name", "Valued Customer")
             
-        record = {
-            "call_id": CallSid,
-            "status": CallStatus,
-            "agent_type": metadata.get("agent_type"),
-            "lead_data": metadata.get("lead_data"),
-            "conversation": history,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        filename = f"database/{metadata.get('agent_type', 'general')}_records.json"
-        os.makedirs("database", exist_ok=True)
-        
-        try:
-            if os.path.exists(filename):
-                with open(filename, 'r') as f:
-                    data = json.load(f)
-            else:
-                data = []
-            data.append(record)
-            with open(filename, 'w') as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            print(f"Error saving record: {e}")
+            print("Starting Post-Call Analysis...")
+            
+            # 1. AI Analysis (Sentiment + Email Writing)
+            analysis = await openai_service.analyze_call(history, lead_name)
+            print(f"Analysis Complete. Score: {analysis.get('sentiment_score')}")
+            
+            # 2. Sync to Salesforce
+            transcript = "\n".join([f"{m['role']}: {m['content']}" for m in history])
+            sf_service.sync_call_data(lead_data, analysis, transcript)
+            
+            # 3. Send Personalized Email
+            if lead_data.get("lead_email"):
+                subject = f"Summary of our conversation - {metadata.get('agent_type', 'VoiceFlow')}"
+                email_body = analysis.get("email_body")
+                email_service.send_followup(lead_data["lead_email"], subject, email_body)
 
-    return {"status": "ok"}
+            # 4. Save to Local DB
+            record = {
+                "call_id": CallSid,
+                "status": CallStatus,
+                "agent_type": metadata.get("agent_type"),
+                "lead_data": lead_data,
+                "conversation": history,
+                "analysis": analysis, # Save the analysis
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            filename = f"database/{metadata.get('agent_type', 'general')}_records.json"
+            os.makedirs("database", exist_ok=True)
+            try:
+                if os.path.exists(filename):
+                    with open(filename, 'r') as f:
+                        data = json.load(f)
+                else:
+                    data = []
+                data.append(record)
+                with open(filename, 'w') as f:
+                    json.dump(data, f, indent=2)
+            except Exception as e:
+                print(f"Error saving record: {e}")
+
+        # [NEW] Add to background tasks (Non-blocking)
+        background_tasks.add_task(process_post_call_actions, history, metadata)
+
+    return {"status": "processing_started"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
