@@ -24,29 +24,7 @@ from services.murf_service import MurfService
 from services.salesforce_service import SalesforceService
 from services.email_service import EmailService
 
-load_dotenv()
-
-app = FastAPI(title="VoiceFlow AI Agent")
-
-# Mount static (still useful for assets, though we use streaming now)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Initialize Services
-twilio_service = TwilioService()
-openai_service = OpenAIService()
-murf_service = MurfService()
-# [NEW] Initialize
-sf_service = SalesforceService()
-email_service = EmailService()
-
-# In-memory storage
-conversations = {}
-call_metadata = {}
-
-# [NEW] Audio Request Cache (Stores text to be spoken)
-audio_request_cache = {}
-
-# [NEW] Voice ID to Persona Mapping
+# [FIX] Define the Voice Persona Map
 VOICE_PERSONA_MAP = {
     # English - India
     "en-IN-anisha": ("Anisha", "Female"),
@@ -73,27 +51,49 @@ VOICE_PERSONA_MAP = {
     "pa-IN-harman": ("Harman", "Male"),
 }
 
+load_dotenv()
+
+app = FastAPI(title="VoiceFlow AI Agent")
+
+# [FIX] Add CORS Middleware immediately after creating the app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allows all origins (localhost:8080, ngrok, etc.)
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods (POST, GET, OPTIONS, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
 
-# --- HELPER: Generate Stream URL ---
-def get_stream_url(text: str, voice_id: str):
-    """
-    Creates a temporary ID for the audio and returns a URL 
-    that will stream the audio when accessed.
-    """
+# Mount static (still useful for assets, though we use streaming now)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Initialize Services
+twilio_service = TwilioService()
+openai_service = OpenAIService()
+murf_service = MurfService()
+# [NEW] Initialize
+sf_service = SalesforceService()
+email_service = EmailService()
+
+# In-memory storage
+conversations = {}
+call_metadata = {}
+
+# Global Cache
+audio_request_cache = {}
+
+# [FIX] Update definition to accept base_url
+def get_stream_url(text: str, voice_id: str, language: str = "en-US", base_url: str = None):
+    import uuid
     request_id = str(uuid.uuid4())
-    # Store the details in RAM
     audio_request_cache[request_id] = {
         "text": text, 
-        "voice_id": voice_id
+        "voice_id": voice_id,
+        "language": language 
     }
-    return f"{settings.BASE_URL}/api/audio/stream/{request_id}"
+    # Use provided base_url (for browser) or fallback to settings (for Twilio)
+    root_url = base_url if base_url else settings.BASE_URL
+    return f"{root_url}/api/audio/stream/{request_id}"
 
 # --- NEW: Streaming Endpoint ---
 @app.get("/api/audio/stream/{request_id}")
@@ -101,20 +101,22 @@ async def stream_audio(request_id: str):
     """
     Streams audio chunks directly to the client (Browser/Twilio).
     """
-    # 1. Retrieve text from cache (Pop to clean up memory)
-    data = audio_request_cache.pop(request_id, None)
+    # [FIX] Use .get() to allow browser retries
+    data = audio_request_cache.get(request_id) 
+    
     if not data:
         return Response(status_code=404)
 
-    # 2. Get Generator from Murf
-    start_time = time.time()
-    generator = murf_service.create_audio_stream(data["text"], data["voice_id"])
-    if not generator:
-         return Response(status_code=500)
+    # [FIX] Pass language to MurfService
+    generator = murf_service.create_audio_stream(
+        data["text"], 
+        data["voice_id"], 
+        data.get("language", "en-US")
+    )
     
-    print(f"Murf TTS Init Latency: {time.time() - start_time:.4f}s")
+    if not generator:
+        return Response(status_code=500)
 
-    # 3. Stream Response (Chunked Transfer)
     return StreamingResponse(generator, media_type="audio/wav")
 
 
@@ -124,7 +126,7 @@ async def root():
 
 # 1. Unified Initiate Endpoint
 @app.post("/api/phone/call")
-async def initiate_call(request: InitiateCallRequest):
+async def initiate_call(request: InitiateCallRequest, req: Request): # [FIX] Add 'req'
     session_id = str(uuid.uuid4())
     status = "browser_session_started"
     greeting_audio_url = None
@@ -175,8 +177,10 @@ async def initiate_call(request: InitiateCallRequest):
         session_id = twilio_service.initiate_call(request.phone_number)
         status = "call_initiated"
     else:
-        # [FIX] Use Streaming URL
-        greeting_audio_url = get_stream_url(greeting, request.voice_id)
+        # [FIX] Browser Mode: Use the Request's Base URL (localhost:8000)
+        # This ensures the browser gets a URL it can actually reach
+        local_base_url = str(req.base_url).rstrip("/")
+        greeting_audio_url = get_stream_url(greeting, request.voice_id, request.language, local_base_url)
 
     # D. Store in RAM
     conversations[session_id] = [{"role": "system", "content": system_prompt}]
@@ -193,12 +197,13 @@ async def initiate_call(request: InitiateCallRequest):
         "status": status, 
         "call_sid": session_id, 
         "greeting": greeting,
-        "greeting_audio_url": greeting_audio_url 
+        "greeting_audio_url": greeting_audio_url,
+        "language": request.language 
     }
 
 # --- BROWSER CHAT ---
 @app.post("/api/browser/chat")
-async def browser_chat(request: BrowserChatRequest):
+async def browser_chat(request: BrowserChatRequest, req: Request): # [FIX] Add 'req'
     sid = request.session_id
     
     history = conversations.get(sid, [])
@@ -211,9 +216,11 @@ async def browser_chat(request: BrowserChatRequest):
     
     meta = call_metadata.get(sid, {})
     voice_id = meta.get("voice_id", "en-US-cooper")
+    language = meta.get("language", "en-IN")
     
-    
-    audio_url = get_stream_url(ai_text, voice_id)
+    # [FIX] Browser Mode: Use Localhost URL
+    local_base_url = str(req.base_url).rstrip("/")
+    audio_url = get_stream_url(ai_text, voice_id, language, local_base_url)
     
     return {
         "text": ai_text,
@@ -231,8 +238,8 @@ async def call_start(CallSid: str = Form(...)):
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
-    
-    audio_url = get_stream_url(greeting_text, voice_id)
+    # [FIX] Pass language
+    audio_url = get_stream_url(greeting_text, voice_id, language)
     
     return Response(
         content=twilio_service.create_response(audio_url, language=language), 
@@ -259,8 +266,8 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
     history.append({"role": "assistant", "content": ai_text})
     conversations[CallSid] = history 
     
-    
-    audio_url = get_stream_url(ai_text, voice_id)
+    # [FIX] Pass language
+    audio_url = get_stream_url(ai_text, voice_id, language)
     
     return Response(
         content=twilio_service.create_response(audio_url, language=language), 
