@@ -13,6 +13,7 @@ import os
 import uuid
 from dotenv import load_dotenv
 from datetime import datetime
+import json
 
 from config import settings
 from models.Schemas import InitiateCallRequest, BrowserChatRequest
@@ -38,6 +39,33 @@ call_metadata = {}
 
 # [NEW] Audio Request Cache (Stores text to be spoken)
 audio_request_cache = {}
+
+# [NEW] Voice ID to Persona Mapping
+VOICE_PERSONA_MAP = {
+    # English - India
+    "en-IN-anisha": ("Anisha", "Female"),
+    "en-IN-anusha": ("Anusha", "Female"),
+    "en-IN-nikhil": ("Nikhil", "Male"),
+    "en-IN-samar": ("Samar", "Male"),
+    "en-IN-tanushree": ("Tanushree", "Female"),
+    
+    # Hindi - India
+    "hi-IN-aman": ("Aman", "Male"),
+    "hi-IN-karan": ("Karan", "Male"),
+    "hi-IN-khyati": ("Khyati", "Female"),
+    "hi-IN-namrita": ("Namrita", "Female"),
+    "hi-IN-sunaina": ("Sunaina", "Female"),
+    
+    # US / Global Voices (used for other languages)
+    "en-US-ronnie": ("Ronnie", "Male"),
+    "en-US-zion": ("Zion", "Male"),
+    "en-US-josie": ("Josie", "Female"),
+    "en-US-alicia": ("Alicia", "Female"),
+    "en-US-lia": ("Lia", "Female"),
+    
+    # Punjabi
+    "pa-IN-harman": ("Harman", "Male"),
+}
 
 app.add_middleware(
     CORSMiddleware,
@@ -100,27 +128,41 @@ async def initiate_call(request: InitiateCallRequest):
     if request.details:
         details_text = ", ".join([f"{k.replace('_', ' ').title()}: {v}" for k, v in request.details.items() if v])
 
-    # B. Define Persona
+    # [FIX] 1. Determine Persona dynamically
+    persona_name, persona_gender = VOICE_PERSONA_MAP.get(request.voice_id, ("Alex", "Male"))
+    
+    # [FIX] 2. Build Rich System Prompt
     lang_instruction = f"You are speaking in {request.language}."
     
     if request.agent_type == "real_estate":
+        company_name = "JK Real Estates"
         system_prompt = (
-            f"You are Sarah, a Real Estate Assistant calling {request.lead_name}. "
+            f"You are {persona_name}, a {persona_gender} Real Estate Assistant at {company_name}. "
+            f"You are calling {request.lead_name}. "
             f"{lang_instruction} "
             f"Context: {details_text}. "
             "Your goal: Qualify them for a property. "
-            "Keep responses under 2 sentences. Be polite and professional."
+            "Be professional, warm, and helpful. "
+            "Keep responses concise (under 2 sentences) to maintain conversation flow."
         )
-        greeting = f"Hello {request.lead_name}, this is Sarah. I received your inquiry regarding property in {request.details.get('location', 'our area')}. Is this a good time?"
+        greeting = f"Hello {request.lead_name}, this is {persona_name} from {company_name}. I received your inquiry regarding a property. Is this a good time?"
     else:
+        # B2B Context
+        company_name = "VoiceFlow"
+        product_desc = "AI agents that help organizations with sales, marketing, and lead qualification"
+        target_company = request.lead_company or "their company"
+        
         system_prompt = (
-            f"You are Alex, a B2B Sales Rep calling {request.lead_name} from {request.lead_company or 'their company'}. "
+            f"You are {persona_name}, a {persona_gender} Sales Representative at {company_name}. "
+            f"We build {product_desc}. "
+            f"You are calling {request.lead_name} at {target_company}. "
             f"{lang_instruction} "
             f"Context: {details_text}. "
-            "Your goal: Book a demo for our AI agent. "
-            "Keep responses under 2 sentences. Be persuasive."
+            "Your goal: Book a demo to show how our AI agents can help their sales team. "
+            "Be persuasive but respectful of their time. "
+            "Keep responses concise (under 2 sentences)."
         )
-        greeting = f"Hi {request.lead_name}, this is Alex from VoiceFlow. Do you have a minute?"
+        greeting = f"Hi {request.lead_name}, this is {persona_name} from {company_name}. We help companies automate their sales with AI. Do you have a minute?"
 
     # C. Handle Modes
     if request.phone_number:
@@ -164,7 +206,7 @@ async def browser_chat(request: BrowserChatRequest):
     meta = call_metadata.get(sid, {})
     voice_id = meta.get("voice_id", "en-US-cooper")
     
-    # [FIX] Use Streaming URL
+    
     audio_url = get_stream_url(ai_text, voice_id)
     
     return {
@@ -183,7 +225,7 @@ async def call_start(CallSid: str = Form(...)):
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
-    # [FIX] Use Streaming URL
+    
     audio_url = get_stream_url(greeting_text, voice_id)
     
     return Response(
@@ -211,7 +253,7 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
     history.append({"role": "assistant", "content": ai_text})
     conversations[CallSid] = history 
     
-    # [FIX] Use Streaming URL
+    
     audio_url = get_stream_url(ai_text, voice_id)
     
     return Response(
