@@ -145,15 +145,18 @@ async def initiate_call(request: InitiateCallRequest, req: Request): # [FIX] Add
     if request.agent_type == "real_estate":
         company_name = "JK Real Estates"
         system_prompt = (
-            f"You are {persona_name}, a {persona_gender} Real Estate Assistant at {company_name}. "
+            f"You are {persona_name}, a {persona_gender} Real Estate Consultant at {company_name}. "
             f"You are calling {request.lead_name}. "
             f"{lang_instruction} "
             f"Context: {details_text}. "
-            "Your goal: Qualify them for a property. "
-            "Be professional, warm, and helpful. "
-            "Keep responses concise (under 2 sentences) to maintain conversation flow."
+            "Your Goal: Qualify this lead. You MUST ask these 3 questions one by one: "
+            "1. What is your budget range? "
+            "2. Are you looking for investment or self-use? "
+            "3. When are you planning to buy? "
+            "Do not ask all at once. Ask one, wait for answer, then ask next. "
+            "Keep responses short and professional."
         )
-        greeting = f"Hello {request.lead_name}, this is {persona_name} from {company_name}. I received your inquiry regarding a property. Is this a good time?"
+        greeting = f"Hello {request.lead_name}, this is {persona_name} from {company_name}. I saw your inquiry about our new project. Do you have a moment?"
     else:
         # B2B Context
         company_name = "VoiceFlow"
@@ -276,66 +279,80 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
 
 # --- END OF CALL ---
 @app.post("/api/phone/status")
-async def call_status(background_tasks: BackgroundTasks,CallSid: str = Form(...), CallStatus: str = Form(...)):
+async def call_status(background_tasks: BackgroundTasks, CallSid: str = Form(...), CallStatus: str = Form(...)):
     if CallStatus in ['completed', 'failed', 'busy', 'no-answer']:
-        print(f"Call {CallSid} ended: {CallStatus}")
+        print(f"Twilio Call {CallSid} ended: {CallStatus}")
         
-        # Retrieve and remove session data
         history = conversations.pop(CallSid, []) 
         metadata = call_metadata.pop(CallSid, {}) 
         
-        if not history:
-            return {"status": "no_history"}
+        if history:
+            background_tasks.add_task(run_post_call_actions, history, metadata, CallSid, CallStatus)
+
+    return {"status": "ok"}
+
+# [NEW] Reusable Post-Call Logic (Move this OUT of the route functions)
+async def run_post_call_actions(history, metadata, call_sid, status_label):
+    lead_data = metadata.get("lead_data", {})
+    lead_name = lead_data.get("lead_name", "Valued Customer")
+    agent_type = metadata.get("agent_type", "general")
+    
+    print(f"Starting Post-Call Analysis for {call_sid}...")
+    
+    # 1. AI Analysis (Sentiment + Email Writing)
+    analysis = await openai_service.analyze_call(history, lead_name)
+    print(f"Analysis Complete. Score: {analysis.get('sentiment_score')}")
+    
+    # 2. Sync to Salesforce
+    transcript = "\n".join([f"{m['role']}: {m['content']}" for m in history])
+    sf_service.sync_call_data(lead_data, analysis, transcript)
+    
+    # 3. Send Personalized Email
+    if lead_data.get("lead_email"):
+        subject = f"Summary of our conversation - {agent_type.replace('_', ' ').title()}"
+        email_body = analysis.get("email_body")
+        email_service.send_followup(lead_data["lead_email"], subject, email_body)
+
+    # 4. Save to Local DB
+    record = {
+        "call_id": call_sid,
+        "status": status_label,
+        "agent_type": agent_type,
+        "lead_data": lead_data,
+        "conversation": history,
+        "analysis": analysis,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    filename = f"database/{agent_type}_records.json"
+    os.makedirs("database", exist_ok=True)
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                data = json.load(f)
+        else:
+            data = []
+        data.append(record)
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Error saving record: {e}")
+
+# --- BROWSER END CALL ---
+@app.post("/api/browser/end")
+async def browser_end_call(request: BrowserChatRequest, background_tasks: BackgroundTasks):
+    sid = request.session_id
+    print(f"Browser Call Ended: {sid}")
+    
+    history = conversations.pop(sid, [])
+    metadata = call_metadata.pop(sid, {})
+    
+    if not history:
+        return {"status": "no_history"}
         
-        # [NEW] Define the background processing function
-        async def process_post_call_actions(history, metadata):
-            lead_data = metadata.get("lead_data", {})
-            lead_name = lead_data.get("lead_name", "Valued Customer")
-            
-            print("Starting Post-Call Analysis...")
-            
-            # 1. AI Analysis (Sentiment + Email Writing)
-            analysis = await openai_service.analyze_call(history, lead_name)
-            print(f"Analysis Complete. Score: {analysis.get('sentiment_score')}")
-            
-            # 2. Sync to Salesforce
-            transcript = "\n".join([f"{m['role']}: {m['content']}" for m in history])
-            sf_service.sync_call_data(lead_data, analysis, transcript)
-            
-            # 3. Send Personalized Email
-            if lead_data.get("lead_email"):
-                subject = f"Summary of our conversation - {metadata.get('agent_type', 'VoiceFlow')}"
-                email_body = analysis.get("email_body")
-                email_service.send_followup(lead_data["lead_email"], subject, email_body)
-
-            # 4. Save to Local DB
-            record = {
-                "call_id": CallSid,
-                "status": CallStatus,
-                "agent_type": metadata.get("agent_type"),
-                "lead_data": lead_data,
-                "conversation": history,
-                "analysis": analysis, # Save the analysis
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            filename = f"database/{metadata.get('agent_type', 'general')}_records.json"
-            os.makedirs("database", exist_ok=True)
-            try:
-                if os.path.exists(filename):
-                    with open(filename, 'r') as f:
-                        data = json.load(f)
-                else:
-                    data = []
-                data.append(record)
-                with open(filename, 'w') as f:
-                    json.dump(data, f, indent=2)
-            except Exception as e:
-                print(f"Error saving record: {e}")
-
-        # [NEW] Add to background tasks (Non-blocking)
-        background_tasks.add_task(process_post_call_actions, history, metadata)
-
+    # Trigger Post-Call Actions
+    background_tasks.add_task(run_post_call_actions, history, metadata, sid, "completed")
+    
     return {"status": "processing_started"}
 
 if __name__ == "__main__":
