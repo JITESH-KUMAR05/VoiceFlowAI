@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Mic, MicOff, Volume2, Loader2 } from "lucide-react";
+import { Mic, MicOff, Volume2, Loader2, PhoneOff } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -135,6 +135,28 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
     }
   };
 
+  // [NEW] Handle End Call
+  const handleEndCall = async () => {
+    if (audioRef.current) audioRef.current.pause();
+    if (recognitionRef.current) recognitionRef.current.stop();
+    setStatus("idle");
+
+    try {
+        await fetch("http://localhost:8000/api/browser/end", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                session_id: session.call_sid,
+                message: "END_CALL"
+            })
+        });
+        alert("Call Ended. Check Salesforce & Email for updates!");
+        window.location.reload(); // Reset for next demo
+    } catch (error) {
+        console.error("Error ending call:", error);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 h-[600px]">
       
@@ -181,7 +203,8 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
         </div>
 
         {/* Controls */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+            {/* Mic Controls */}
             {status === "listening" ? (
                 <Button 
                     size="lg" 
@@ -202,7 +225,18 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
                     <Mic className="w-6 h-6" />
                 </Button>
             )}
+
+            {/* [NEW] End Call Button */}
+            <Button 
+                size="lg" 
+                variant="outline" 
+                className="rounded-full h-16 w-16 border-red-500 text-red-500 hover:bg-red-50"
+                onClick={handleEndCall}
+            >
+                <PhoneOff className="w-6 h-6" />
+            </Button>
         </div>
+        
         <p className="mt-4 text-xs text-muted-foreground">
             {status === "listening" ? "Tap to send" : "Tap to speak"}
         </p>
