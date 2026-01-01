@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Phone, Users, TrendingUp, Clock } from "lucide-react";
 import { AgentLayout } from "@/components/layout/AgentLayout";
@@ -8,17 +8,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { agentConfigs } from "@/types/agent";
-import { b2bUsers, b2bCalls } from "@/data/mockData";
-
-const filterOptions = ["All", "Qualified", "Contacted", "New", "Converted", "Lost"];
 
 export default function B2BCRM() {
   const [activeFilter, setActiveFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState(""); // [FIX] Added Search State
+  const [leads, setLeads] = useState<any[]>([]);
   const config = agentConfigs.b2b;
 
-  const totalUsers = b2bUsers.length;
-  const qualifiedUsers = b2bUsers.filter(u => u.status === "qualified").length;
-  const recentCalls = b2bCalls.length;
+  useEffect(() => {
+    fetch("http://localhost:8000/api/crm/leads?agent_type=b2b")
+      .then(res => res.json())
+      .then(data => setLeads(data))
+      .catch(err => console.error("Failed to fetch leads", err));
+  }, []);
+
+  // [FIX] Filter & Search Logic
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = (lead.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (lead.company || "").toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (activeFilter === "All") return true;
+    if (activeFilter === "Qualified") return lead.score > 70;
+    if (activeFilter === "Contacted") return lead.status?.toLowerCase().includes("contacted") || lead.status?.toLowerCase().includes("completed");
+    if (activeFilter === "New") return lead.status?.toLowerCase().includes("open") || lead.status?.toLowerCase().includes("new");
+    if (activeFilter === "Converted") return lead.status?.toLowerCase().includes("converted");
+    if (activeFilter === "Lost") return lead.score < 30;
+    
+    return true;
+  });
 
   return (
     <AgentLayout agentType="b2b">
@@ -38,7 +57,7 @@ export default function B2BCRM() {
               <p className="text-muted-foreground">Manage your B2B leads, calls, and pipeline</p>
             </motion.div>
 
-            {/* Stats Grid */}
+            {/* [FIX] Real Stats */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -47,34 +66,34 @@ export default function B2BCRM() {
             >
               <StatCard
                 title="Total Leads"
-                value={totalUsers.toString()}
-                change="+12%"
+                value={leads.length.toString()}
+                change="+5%"
                 changeType="positive"
                 icon={Users}
-                variant="primary"
-              />
-              <StatCard
-                title="Qualified"
-                value={qualifiedUsers.toString()}
-                change="+8%"
-                changeType="positive"
-                icon={TrendingUp}
                 variant="secondary"
               />
               <StatCard
-                title="Total Calls"
-                value={recentCalls.toString()}
-                change="+15%"
+                title="Qualified"
+                value={leads.filter(u => u.score > 70).length.toString()}
+                change="+12%"
                 changeType="positive"
-                icon={Phone}
-                variant="default"
+                icon={TrendingUp}
+                variant="primary"
               />
               <StatCard
-                title="Conversion Rate"
-                value={config.kpis.conversionRate}
+                title="Avg Score"
+                value={(leads.reduce((acc, curr) => acc + curr.score, 0) / (leads.length || 1)).toFixed(0)}
                 change="+3%"
                 changeType="positive"
                 icon={Clock}
+                variant="default"
+              />
+              <StatCard
+                title="Pipeline Value"
+                value="$0"
+                change="0%"
+                changeType="neutral"
+                icon={TrendingUp}
                 variant="default"
               />
             </motion.div>
@@ -92,10 +111,12 @@ export default function B2BCRM() {
                   <Input
                     placeholder="Search leads..."
                     className="pl-10 bg-muted/50 border-border"
+                    value={searchQuery} // [FIX] Bind value
+                    onChange={(e) => setSearchQuery(e.target.value)} // [FIX] Bind onChange
                   />
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {filterOptions.map((filter) => (
+                  {["All", "Qualified", "Contacted", "New", "Converted", "Lost"].map((filter) => (
                     <Button
                       key={filter}
                       variant={activeFilter === filter ? "default" : "ghost"}
@@ -112,50 +133,31 @@ export default function B2BCRM() {
               </div>
             </motion.div>
 
-            {/* Overview Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="grid md:grid-cols-2 gap-6"
-            >
-              <div className="glass-card p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Recent Leads</h3>
+            {/* [FIX] Real List */}
+            <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Recent B2B Leads</h3>
                 <div className="space-y-3">
-                  {b2bUsers.slice(0, 3).map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                      <div>
-                        <p className="font-medium text-foreground">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">{user.company}</p>
-                      </div>
-                      <span className={cn(
-                        "text-xs px-2 py-1 rounded-full",
-                        user.interestLevel === "high" ? "bg-secondary/20 text-secondary" :
-                        user.interestLevel === "medium" ? "bg-primary/20 text-primary" :
-                        "bg-muted text-muted-foreground"
-                      )}>
-                        {user.interestLevel}
-                      </span>
-                    </div>
-                  ))}
+                    {/* [FIX] Use filteredLeads */}
+                    {filteredLeads.map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                            <div className="flex-1">
+                                <div className="flex justify-between">
+                                    <p className="font-medium text-foreground">{user.name}</p>
+                                    <span className={cn("text-xs px-2 py-1 rounded-full", user.score > 70 ? "bg-green-500/20 text-green-600" : "bg-yellow-500/20 text-yellow-600")}>
+                                        Score: {user.score}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{user.company}</p>
+                                {/* [FIX] Display Summary */}
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">
+                                    {user.summary || "No summary available"}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                    {filteredLeads.length === 0 && <p className="text-muted-foreground">No leads found.</p>}
                 </div>
-              </div>
-
-              <div className="glass-card p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Recent Calls</h3>
-                <div className="space-y-3">
-                  {b2bCalls.slice(0, 3).map((call) => (
-                    <div key={call.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                      <div>
-                        <p className="font-medium text-foreground">{call.leadName}</p>
-                        <p className="text-sm text-muted-foreground">{call.callDate}</p>
-                      </div>
-                      <span className="text-sm font-mono text-foreground">{call.duration}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
