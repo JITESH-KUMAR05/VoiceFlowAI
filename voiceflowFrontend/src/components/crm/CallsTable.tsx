@@ -1,7 +1,6 @@
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Eye } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,8 +9,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Call } from "@/types/agent";
+
+// [FIX] Updated Interface to match Backend Response
+interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  status: string;
+  score: number; // 0-100
+  last_contact: string;
+  summary: string;
+}
 
 interface CallsTableProps {
   calls: Call[];
@@ -32,6 +45,29 @@ const statusColors = {
 };
 
 export function CallsTable({ calls, onViewCall }: CallsTableProps) {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // [FIX] Fetch Real Data from Backend
+  useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/crm/leads");
+        const data = await response.json();
+        setLeads(data);
+      } catch (error) {
+        console.error("Failed to fetch CRM data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeads();
+  }, []);
+
+  if (loading)
+    return <div className="p-8 text-center">Loading CRM Data...</div>;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -48,7 +84,9 @@ export function CallsTable({ calls, onViewCall }: CallsTableProps) {
             <TableHead className="text-muted-foreground">Duration</TableHead>
             <TableHead className="text-muted-foreground">Status</TableHead>
             <TableHead className="text-muted-foreground">Next Action</TableHead>
-            <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+            <TableHead className="text-muted-foreground text-right">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -69,11 +107,18 @@ export function CallsTable({ calls, onViewCall }: CallsTableProps) {
                 <div className="text-xs">{call.callTime}</div>
               </TableCell>
               <TableCell>
-                <Badge className={cn("capitalize", interestColors[call.interestLevel])}>
+                <Badge
+                  className={cn(
+                    "capitalize",
+                    interestColors[call.interestLevel]
+                  )}
+                >
                   {call.interestLevel}
                 </Badge>
               </TableCell>
-              <TableCell className="text-foreground font-mono">{call.duration}</TableCell>
+              <TableCell className="text-foreground font-mono">
+                {call.duration}
+              </TableCell>
               <TableCell>
                 <Badge className={cn("capitalize", statusColors[call.status])}>
                   {call.status}
@@ -95,6 +140,13 @@ export function CallsTable({ calls, onViewCall }: CallsTableProps) {
               </TableCell>
             </motion.tr>
           ))}
+          {calls.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                No calls found.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </motion.div>

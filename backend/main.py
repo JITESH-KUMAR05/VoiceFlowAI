@@ -20,11 +20,11 @@ from models.Schemas import InitiateCallRequest, BrowserChatRequest
 from services.twilio_service import TwilioService
 from services.openai_service import OpenAIService
 from services.murf_service import MurfService
-# [NEW] Import new services
+# Import new services
 from services.salesforce_service import SalesforceService
 from services.email_service import EmailService
 
-# [FIX] Define the Voice Persona Map
+# Define the Voice Persona Map
 VOICE_PERSONA_MAP = {
     # English - India
     "en-IN-anisha": ("Anisha", "Female"),
@@ -55,7 +55,7 @@ load_dotenv()
 
 app = FastAPI(title="VoiceFlow AI Agent")
 
-# [FIX] Add CORS Middleware immediately after creating the app
+# Add CORS Middleware immediately after creating the app
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins (localhost:8080, ngrok, etc.)
@@ -71,7 +71,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 twilio_service = TwilioService()
 openai_service = OpenAIService()
 murf_service = MurfService()
-# [NEW] Initialize
+# Initialize
 sf_service = SalesforceService()
 email_service = EmailService()
 
@@ -82,7 +82,7 @@ call_metadata = {}
 # Global Cache
 audio_request_cache = {}
 
-# [FIX] Update definition to accept base_url
+# Update definition to accept base_url
 def get_stream_url(text: str, voice_id: str, language: str = "en-US", base_url: str = None):
     import uuid
     request_id = str(uuid.uuid4())
@@ -95,19 +95,17 @@ def get_stream_url(text: str, voice_id: str, language: str = "en-US", base_url: 
     root_url = base_url if base_url else settings.BASE_URL
     return f"{root_url}/api/audio/stream/{request_id}"
 
-# --- NEW: Streaming Endpoint ---
+# Streaming Endpoint ---
 @app.get("/api/audio/stream/{request_id}")
 async def stream_audio(request_id: str):
     """
     Streams audio chunks directly to the client (Browser/Twilio).
     """
-    # [FIX] Use .get() to allow browser retries
     data = audio_request_cache.get(request_id) 
     
     if not data:
         return Response(status_code=404)
 
-    # [FIX] Pass language to MurfService
     generator = murf_service.create_audio_stream(
         data["text"], 
         data["voice_id"], 
@@ -126,61 +124,55 @@ async def root():
 
 # 1. Unified Initiate Endpoint
 @app.post("/api/phone/call")
-async def initiate_call(request: InitiateCallRequest, req: Request): # [FIX] Add 'req'
+async def initiate_call(request: InitiateCallRequest, req: Request):
     session_id = str(uuid.uuid4())
     status = "browser_session_started"
     greeting_audio_url = None
 
-    # A. Construct Context
-    details_text = ""
-    if request.details:
-        details_text = ", ".join([f"{k.replace('_', ' ').title()}: {v}" for k, v in request.details.items() if v])
-
-    # [FIX] 1. Determine Persona dynamically
+    # 1. Determine Persona
     persona_name, persona_gender = VOICE_PERSONA_MAP.get(request.voice_id, ("Alex", "Male"))
-    
-    # [FIX] 2. Build Rich System Prompt
     lang_instruction = f"You are speaking in {request.language}."
     
-    if request.agent_type == "real_estate":
+    # Handle both hyphen and underscore for agent type
+    agent_type_normalized = request.agent_type.replace("-", "_")
+
+    if agent_type_normalized == "real_estate":
         company_name = "JK Real Estates"
+        # Consultative Real Estate Prompt
         system_prompt = (
-            f"You are {persona_name}, a {persona_gender} Real Estate Consultant at {company_name}. "
-            f"You are calling {request.lead_name}. "
-            f"{lang_instruction} "
-            f"Context: {details_text}. "
-            "Your Goal: Qualify this lead. You MUST ask these 3 questions one by one: "
-            "1. What is your budget range? "
-            "2. Are you looking for investment or self-use? "
-            "3. When are you planning to buy? "
-            "Do not ask all at once. Ask one, wait for answer, then ask next. "
-            "Keep responses short and professional."
-        )
-        greeting = f"Hello {request.lead_name}, this is {persona_name} from {company_name}. I saw your inquiry about our new project. Do you have a moment?"
-    else:
-        # B2B Context
-        company_name = "VoiceFlow"
-        product_desc = "AI agents that help organizations with sales, marketing, and lead qualification"
-        target_company = request.lead_company or "their company"
-        
-        system_prompt = (
-            f"You are {persona_name}, a {persona_gender} Sales Representative at {company_name}. "
-            f"We build {product_desc}. "
-            f"You are calling {request.lead_name} at {target_company}. "
-            f"{lang_instruction} "
-            f"Context: {details_text}. "
-            "Your goal: Book a demo to show how our AI agents can help their sales team. "
-            "Be persuasive but respectful of their time. "
+            f"You are {persona_name}, a {persona_gender} Senior Property Consultant at {company_name}. "
+            f"You are calling {request.lead_name}. {lang_instruction} "
+            f"Context: {request.lead_company or 'Interested in property'}. "
+            "Your Goal: Have a natural conversation to understand their needs before pitching. "
+            "Step 1: Build rapport and ask if they are looking for investment or self-use. "
+            "Step 2: Ask about their preferred location and budget range. "
+            "Step 3: Only after understanding needs, suggest a site visit or demo. "
+            "Be professional, warm, and empathetic. Do NOT rush to the close. "
             "Keep responses concise (under 2 sentences)."
         )
-        greeting = f"Hi {request.lead_name}, this is {persona_name} from {company_name}. We help companies automate their sales with AI. Do you have a minute?"
+        greeting = f"Hello {request.lead_name}, this is {persona_name} from {company_name}. I received your inquiry regarding a property. Is this a good time to talk?"
+    else:
+        # Consultative B2B Prompt
+        company_name = "VoiceFlow"
+        system_prompt = (
+            f"You are {persona_name}, a {persona_gender} Solutions Consultant at {company_name}. "
+            f"We help businesses automate sales using AI agents. "
+            f"You are calling {request.lead_name}. {lang_instruction} "
+            "Your Goal: Consultative selling. "
+            "Step 1: Ask about their current sales process challenges. "
+            "Step 2: Listen to their pain points (high volume, low conversion, etc.). "
+            "Step 3: Explain how our AI can solve that specific problem. "
+            "Step 4: Gently propose a demo to show the solution in action. "
+            "Be helpful and curious, not pushy. Keep responses concise."
+        )
+        greeting = f"Hi {request.lead_name}, this is {persona_name} from {company_name}. I noticed you're looking to improve sales efficiency. Do you have a minute?"
 
     # C. Handle Modes
     if request.phone_number:
         session_id = twilio_service.initiate_call(request.phone_number)
         status = "call_initiated"
     else:
-        # [FIX] Browser Mode: Use the Request's Base URL (localhost:8000)
+        # Browser Mode: Use the Request's Base URL (localhost:8000)
         # This ensures the browser gets a URL it can actually reach
         local_base_url = str(req.base_url).rstrip("/")
         greeting_audio_url = get_stream_url(greeting, request.voice_id, request.language, local_base_url)
@@ -189,7 +181,7 @@ async def initiate_call(request: InitiateCallRequest, req: Request): # [FIX] Add
     conversations[session_id] = [{"role": "system", "content": system_prompt}]
     call_metadata[session_id] = {
         "greeting": greeting, 
-        "agent_type": request.agent_type,
+        "agent_type": request.agent_type, # Keep original for consistency
         "language": request.language,
         "voice_id": request.voice_id,
         "start_time": datetime.now().isoformat(),
@@ -206,7 +198,7 @@ async def initiate_call(request: InitiateCallRequest, req: Request): # [FIX] Add
 
 # --- BROWSER CHAT ---
 @app.post("/api/browser/chat")
-async def browser_chat(request: BrowserChatRequest, req: Request): # [FIX] Add 'req'
+async def browser_chat(request: BrowserChatRequest, req: Request): 
     sid = request.session_id
     
     history = conversations.get(sid, [])
@@ -221,7 +213,7 @@ async def browser_chat(request: BrowserChatRequest, req: Request): # [FIX] Add '
     voice_id = meta.get("voice_id", "en-US-cooper")
     language = meta.get("language", "en-IN")
     
-    # [FIX] Browser Mode: Use Localhost URL
+    # Browser Mode: Use Localhost URL
     local_base_url = str(req.base_url).rstrip("/")
     audio_url = get_stream_url(ai_text, voice_id, language, local_base_url)
     
@@ -241,7 +233,7 @@ async def call_start(CallSid: str = Form(...)):
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
     
-    # [FIX] Pass language
+    
     audio_url = get_stream_url(greeting_text, voice_id, language)
     
     return Response(
@@ -269,7 +261,7 @@ async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None
     history.append({"role": "assistant", "content": ai_text})
     conversations[CallSid] = history 
     
-    # [FIX] Pass language
+    
     audio_url = get_stream_url(ai_text, voice_id, language)
     
     return Response(
@@ -291,7 +283,7 @@ async def call_status(background_tasks: BackgroundTasks, CallSid: str = Form(...
 
     return {"status": "ok"}
 
-# [NEW] Reusable Post-Call Logic (Move this OUT of the route functions)
+
 async def run_post_call_actions(history, metadata, call_sid, status_label):
     lead_data = metadata.get("lead_data", {})
     lead_name = lead_data.get("lead_name", "Valued Customer")
@@ -354,6 +346,12 @@ async def browser_end_call(request: BrowserChatRequest, background_tasks: Backgr
     background_tasks.add_task(run_post_call_actions, history, metadata, sid, "completed")
     
     return {"status": "processing_started"}
+
+# Endpoint to Fetch CRM Data from Salesforce
+@app.get("/api/crm/leads")
+async def get_crm_leads(agent_type: str = "all"):
+    data = sf_service.get_crm_data(agent_type)
+    return data
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
