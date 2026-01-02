@@ -40,15 +40,20 @@ class OpenAIService:
             # Convert history to a single string
             transcript = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history if msg['role'] != 'system'])
             
+            # [FIX] Better Prompt for Engaging Emails
             prompt = (
                 f"Analyze the following call transcript with {lead_name}.\n"
                 "Return a JSON object with these fields:\n"
                 "- sentiment_score: (1-10)\n"
                 "- sentiment_label: (Interested, Neutral, Not Interested, Angry)\n"
                 "- summary: (Brief summary for CRM)\n"
-                "- email_body: (Write a warm, personalized follow-up email to the lead based on what was discussed. "
-                "Address their specific questions or concerns mentioned. "
-                "Do not include a subject line. Sign off as 'VoiceFlow AI Team'.)\n\n"
+                "- email_body: (Write a highly engaging, warm, and professional follow-up email. "
+                "Do NOT use a subject line in the body. "
+                "Start with a friendly hook. "
+                "Focus on the specific value proposition discussed in the call. "
+                "Avoid generic corporate jargon like 'I hope this email finds you well'. "
+                "Make it sound like a helpful consultant following up. "
+                "Sign off as 'VoiceFlow AI Team'.)\n\n"
                 f"Transcript:\n{transcript}"
             )
 
@@ -56,7 +61,7 @@ class OpenAIService:
                 model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"}, 
-                temperature=0.7 # Slightly higher for creative email writing
+                temperature=0.8 # Higher temperature for more creativity
             )
             
             return json.loads(response.choices[0].message.content)
@@ -66,5 +71,5 @@ class OpenAIService:
                 "sentiment_score": 5,
                 "sentiment_label": "Neutral",
                 "summary": "Analysis failed.",
-                "email_body": f"Hi {lead_name},\n\nThank you for speaking with us. We will be in touch shortly.\n\nBest,\nVoiceFlow Team"
+                "email_body": "Hi there,\n\nThanks for chatting! We'll be in touch.\n\nBest,\nVoiceFlow Team"
             }
