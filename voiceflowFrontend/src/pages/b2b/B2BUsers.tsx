@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import { AgentLayout } from "@/components/layout/AgentLayout";
@@ -7,24 +7,44 @@ import { UserCard } from "@/components/crm/UserCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { b2bUsers } from "@/data/mockData";
 
-const filterOptions = ["All", "High Interest", "Medium", "Low", "None"];
+const filterOptions = ["All", "High Interest", "Medium", "Low"];
 
 export default function B2BUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [users, setUsers] = useState<any[]>([]); // [FIX] Real Data State
 
-  const filteredUsers = b2bUsers.filter((user) => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.company?.toLowerCase().includes(searchQuery.toLowerCase());
+  // [FIX] Fetch Real Data
+  useEffect(() => {
+    fetch("http://localhost:8000/api/crm/leads?agent_type=b2b")
+      .then(res => res.json())
+      .then(data => {
+        // Map backend data to UserCard format
+        const mappedUsers = data.map((lead: any) => ({
+            id: lead.id,
+            name: lead.name,
+            email: lead.email,
+            company: lead.company,
+            role: "Lead", // Default
+            interestLevel: lead.score > 70 ? "high" : lead.score > 40 ? "medium" : "low",
+            lastActive: new Date(lead.last_contact).toLocaleDateString(),
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${lead.name}`
+        }));
+        setUsers(mappedUsers);
+      })
+      .catch(err => console.error("Failed to fetch users", err));
+  }, []);
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = (user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.company || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     if (activeFilter === "All") return matchesSearch;
     if (activeFilter === "High Interest") return matchesSearch && user.interestLevel === "high";
     if (activeFilter === "Medium") return matchesSearch && user.interestLevel === "medium";
     if (activeFilter === "Low") return matchesSearch && user.interestLevel === "low";
-    if (activeFilter === "None") return matchesSearch && user.interestLevel === "none";
     return matchesSearch;
   });
 
