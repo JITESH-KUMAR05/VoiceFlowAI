@@ -14,9 +14,8 @@ class OpenAIService:
     
     async def generate_response(self, history: list):
         """ 
-            Generates a text response based on conversation history format : [{"role": "system", "content": "...."}, {"role": "user" : "content": "...."}]
+            Generates a text response based on conversation history.
         """
-
         try:
             start_time = time.time()
             response= await self.client.chat.completions.create(
@@ -34,26 +33,29 @@ class OpenAIService:
 
     async def analyze_call(self, history: list, lead_name: str):
         """
-        Analyzes the call and generates a personalized follow-up email.
+        Analyzes the call using a Weighted Scoring System.
         """
         try:
             # Convert history to a single string
             transcript = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history if msg['role'] != 'system'])
             
-            # [FIX] Better Prompt for Engaging Emails
+            # [FIX] Updated Prompt with Standardized Weights
             prompt = (
                 f"Analyze the following call transcript with {lead_name}.\n"
-                "Return a JSON object with these fields:\n"
-                "- sentiment_score: (1-10)\n"
-                "- sentiment_label: (Interested, Neutral, Not Interested, Angry)\n"
+                "Return a valid JSON object with these exact keys:\n"
+                "- sentiment_score: (integer 0-100). Calculate strictly based on these weights:\n"
+                "  1. Demo Scheduled / Next Steps Agreed: +30 points\n"
+                "  2. Budget or Authority Confirmed: +20 points\n"
+                "  3. Friendly/Engaged Tone: +20 points\n"
+                "  4. Pain Points Clearly Stated: +15 points\n"
+                "  5. Correct Target Audience (Company/Role): +15 points\n"
+                "- sentiment_label: (Interested [70-100], Neutral [40-69], Not Interested [0-39])\n"
                 "- summary: (Brief summary for CRM)\n"
-                "- email_body: (Write a highly engaging, warm, and professional follow-up email. "
-                "Do NOT use a subject line in the body. "
-                "Start with a friendly hook. "
-                "Focus on the specific value proposition discussed in the call. "
-                "Avoid generic corporate jargon like 'I hope this email finds you well'. "
-                "Make it sound like a helpful consultant following up. "
-                "Sign off as 'VoiceFlow AI Team'.)\n\n"
+                "- company_type: (Infer industry/size, e.g. 'SaaS Startup')\n"
+                "- client_lifestyle: (Infer persona/vibe, e.g. 'Busy, tech-savvy')\n"
+                "- pain_points: (List specific problems mentioned)\n"
+                "- agent_verdict: (Predict conversion probability and why)\n"
+                "- email_body: (Write a highly engaging follow-up email. No subject line in body.)\n\n"
                 f"Transcript:\n{transcript}"
             )
 
@@ -61,15 +63,19 @@ class OpenAIService:
                 model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"}, 
-                temperature=0.8 # Higher temperature for more creativity
+                temperature=0.7 
             )
             
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"Analysis Error: {e}")
             return {
-                "sentiment_score": 5,
+                "sentiment_score": 50,
                 "sentiment_label": "Neutral",
                 "summary": "Analysis failed.",
+                "company_type": "Unknown",
+                "client_lifestyle": "Unknown",
+                "pain_points": "Analysis failed",
+                "agent_verdict": "Manual review required",
                 "email_body": "Hi there,\n\nThanks for chatting! We'll be in touch.\n\nBest,\nVoiceFlow Team"
             }
