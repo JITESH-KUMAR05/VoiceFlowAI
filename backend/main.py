@@ -227,8 +227,11 @@ async def browser_chat(request: BrowserChatRequest, req: Request):
 async def call_start(CallSid: str = Form(...)):
     metadata = call_metadata.get(CallSid, {})
     greeting_text = metadata.get("greeting", "Hello.")
-    voice_id = metadata.get("voice_id", "en-US-cooper")
+    
     language = metadata.get("language", "en-IN")
+    default_voice = "en-IN-anisha" if language == "en-IN" else "en-US-cooper"
+    
+    voice_id = metadata.get("voice_id", default_voice)
     
     if CallSid in conversations:
         conversations[CallSid].append({"role": "assistant", "content": greeting_text})
@@ -244,8 +247,12 @@ async def call_start(CallSid: str = Form(...)):
 @app.post("/api/phone/twiml/process")
 async def process_speech(CallSid: str = Form(...), SpeechResult: str = Form(None)):
     metadata = call_metadata.get(CallSid, {})
-    voice_id = metadata.get("voice_id", "en-US-cooper")
+    
+    # [FIX] Smart Default here too
     language = metadata.get("language", "en-IN")
+    default_voice = "en-IN-anisha" if language == "en-IN" else "en-US-cooper"
+    
+    voice_id = metadata.get("voice_id", default_voice)
 
     if not SpeechResult:
         return Response(

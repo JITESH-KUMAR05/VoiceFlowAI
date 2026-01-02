@@ -11,11 +11,19 @@ class TwilioService:
     def initiate_call(self, to_number: str):
         """Initiates an outbound call using Twilio"""
         url = f"{self.base_url}/api/phone/twiml/start"
+        
+        # Define the callback URL for call status updates
+        status_callback_url = f"{self.base_url}/api/phone/status"
+        
         call = self.client.calls.create(
             to=to_number,
             from_=self.from_phone_number,
             url=url,
-            method="POST"
+            method="POST",
+            # Tell Twilio to hit our API when the call ends
+            status_callback=status_callback_url,
+            status_callback_event=['completed', 'busy', 'no-answer', 'failed'],
+            status_callback_method="POST"
         )
         return call.sid
 
@@ -32,10 +40,11 @@ class TwilioService:
             input="speech",
             action=f"{self.base_url}/api/phone/twiml/process",
             method="POST",
-            language=language, # <--- Dynamic Language
+            language=language, 
             speechTimeout="auto"
         )
         
         # If no input, just pause/end
-        response.say("I didn't hear anything.")
+        response.say("I didn't hear anything. Goodbye.")
+        response.hangup() # [FIX] Explicitly hang up if no input
         return response.to_xml()

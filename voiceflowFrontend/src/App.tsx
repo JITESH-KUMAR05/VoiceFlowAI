@@ -28,6 +28,7 @@ import RealEstateAnalytics from "./pages/real-estate/RealEstateAnalytics";
 
 const queryClient = new QueryClient();
 
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
