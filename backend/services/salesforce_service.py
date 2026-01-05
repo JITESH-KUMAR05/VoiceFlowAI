@@ -1,6 +1,7 @@
 from simple_salesforce import Salesforce
 from config import settings
 import time
+from datetime import datetime
 
 class SalesforceService:
     def __init__(self):
@@ -55,16 +56,28 @@ class SalesforceService:
                         'Company': company,
                         'Email': email,
                         'Phone': lead_data.get("phone_number"),
-                        'LeadSource': 'VoiceFlow', # [FIX] Use this for filtering
+                        'LeadSource': 'VoiceFlow', 
                         'Description': f"Created by VoiceFlow AI Agent ({lead_data.get('agent_type')})"
                     }
                     res = self.sf.Lead.create(lead_record)
                     lead_id = res['id']
 
-                # 3. Log Task (Score & Summary)
+                # 3. UPDATE LEAD: Store Transcript ONLY (No complex fields)
                 if lead_id:
-                    raw_score = call_summary.get("sentiment_score", 5)
-                    score_100 = raw_score * 10 
+                    # [NEW] Simple update to store transcript for Agentforce
+                    safe_transcript = transcript if transcript else "No transcript available."
+                    
+                    try:
+                        self.sf.Lead.update(lead_id, {
+                            'AI_Transcript__c': safe_transcript[:131000] # Limit for Long Text Area
+                        })
+                        print(f"✅ Updated Lead {lead_id} with Transcript.")
+                    except Exception as e:
+                        print(f"⚠️ Failed to update Transcript on Lead: {e}")
+
+                    # 4. Log Task (Score & Summary for Timeline)
+                    # OpenAI now returns 0-100 score, so we use it directly or fallback to 50
+                    score_100 = call_summary.get("sentiment_score", 50) 
                     
                     task_record = {
                         'WhoId': lead_id,
@@ -78,7 +91,7 @@ class SalesforceService:
                         )
                     }
                     self.sf.Task.create(task_record)
-                    print(f"Logged Call Activity in Salesforce for Lead: {lead_id}")
+                    print(f"✅ Logged Call Activity for Lead: {lead_id}")
                 
                 break 
 
@@ -93,11 +106,9 @@ class SalesforceService:
             if not self.sf: return []
         
         try:
-            # [FIX] Query Logic:
-            # 1. We cannot filter 'Description' in SOQL.
-            # 2. We fetch recent leads and filter in Python instead.
+            # [FIX] Added AI_Transcript__c to query so you can see it in Frontend if needed
             query = """
-                SELECT Id, FirstName, LastName, Company, Email, Phone, Status, CreatedDate, Description, LeadSource,
+                SELECT Id, FirstName, LastName, Company, Email, Phone, Status, CreatedDate, Description, LeadSource, AI_Transcript__c,
                 (SELECT Subject, Description, CreatedDate FROM Tasks ORDER BY CreatedDate DESC LIMIT 1)
                 FROM Lead 
                 ORDER BY CreatedDate DESC LIMIT 50
@@ -108,21 +119,15 @@ class SalesforceService:
             for record in results['records']:
                 description = record.get('Description') or ""
                 
-                # [FIX] Python Filtering
-                # Only show leads created by VoiceFlow
                 if "VoiceFlow" not in description and record.get('LeadSource') != 'VoiceFlow':
                     continue
 
-                # Filter by Agent Type (b2b vs real-estate)
                 if agent_type and agent_type != "all":
-                    # Normalize: "real-estate" matches "real_estate" or "real-estate"
                     normalized_type = agent_type.replace("-", "")
                     normalized_desc = description.replace("-", "").replace("_", "")
-                    
                     if normalized_type not in normalized_desc:
                         continue
 
-                # Parse Task Data
                 tasks = record.get('Tasks')
                 last_call = tasks['records'][0] if tasks and tasks['records'] else {}
                 task_desc = last_call.get('Description', '')
@@ -132,6 +137,9 @@ class SalesforceService:
                     try:
                         score = int(task_desc.split("Intent Score:")[1].split("/")[0].strip())
                     except: pass
+                
+                # Get Transcript from Lead Object directly now
+                transcript = record.get('AI_Transcript__c')
 
                 mapped_data.append({
                     "id": record['Id'],
@@ -142,6 +150,7 @@ class SalesforceService:
                     "score": score,
                     "last_contact": last_call.get('CreatedDate', record['CreatedDate']),
                     "summary": task_desc.split("--- Full Transcript ---")[0].replace(f"Intent Score: {score}/100", "").strip() or "No call summary yet",
+                    "transcript": transcript or "No transcript available" # Available for UI
                 })
             
             return mapped_data
