@@ -6,7 +6,8 @@ class MurfService:
     def __init__(self):
         self.client = Murf(
             api_key=settings.MURF_API_KEY,
-            region=MurfRegion.IN 
+            region=MurfRegion.IN,
+            timeout=60
         )
     
     def create_audio_stream(self, text: str, voice_id: str, language: str = "en-US"):
@@ -24,9 +25,9 @@ class MurfService:
             
             return self.client.text_to_speech.stream(
                 text=text,
-                voice_id=clean_voice_id, # Must be name only (e.g. "Josie")
+                voice_id=clean_voice_id, 
                 model="FALCON",
-                multi_native_locale=language, # [FIX] Required for Falcon
+                multi_native_locale=language, 
                 format="WAV",
                 sample_rate=24000
             )
