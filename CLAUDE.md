@@ -34,11 +34,16 @@ No "SOC 2 compliant", no "end-to-end encrypted", no "enterprise-grade", no
 uptime or scale claims. Describe what the code does, in the words an engineer
 would use to describe it.
 
-### 3. Mock data is confined to `src/data/mockData.ts`
+### 3. There is no mock data
 
-Nothing else imports it except tests and the components explicitly marked as
-unwired. Any component reading mock data renders a visible "sample data" marker
-until it is wired to the API.
+`src/data/mockData.ts` is gone and must not come back. Every view reads from
+`src/lib/api.ts` and renders an explicit empty state when the API returns
+nothing.
+
+If a view genuinely cannot be wired yet, it renders `SampleDataNotice` from
+`src/components/DataState.tsx` so the placeholder is visible on screen rather
+than only in the source. A view that silently shows invented records is the
+failure this rule exists to prevent.
 
 ### 4. Secrets never enter the repository
 
@@ -143,9 +148,17 @@ change per commit; do not mix a redesign with a bug fix.
 Run the checks and read the output. Do not report success from expectation.
 
 ```bash
-cd backend && pytest -q
-cd voiceflowFrontend && npm run lint && npx tsc --noEmit && npm run build
+cd backend && uv run pytest -q
+cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run build
 ```
+
+`tsc -b`, not `tsc --noEmit`. The root `tsconfig.json` sets `"files": []` and
+only holds project references, so a bare `tsc --noEmit` typechecks nothing and
+exits 0 no matter how broken the code is.
+
+Current baseline: 35 backend tests passing, 0 lint errors, 0 type errors. The
+9 remaining lint warnings are `react-refresh/only-export-components` in the
+shadcn primitives, which is inherent to how those files are written.
 
 If something fails, say so and show the failure. A partially working change
 reported as complete is worse than an honest broken one.
