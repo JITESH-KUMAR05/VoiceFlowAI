@@ -1,73 +1,34 @@
-# Welcome to your Lovable project
+# VoiceFlow AI — Frontend
 
-## Project info
+React + Vite console for the VoiceFlow outbound voice agent. Consumes the
+FastAPI backend in [`../backend`](../backend).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Running
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+cp .env.example .env    # point VITE_API_BASE_URL at your backend
+npm run dev             # http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+The backend must be running for the call and CRM views to return data.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Checks
 
-**Use GitHub Codespaces**
+```sh
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Layout
 
-## What technologies are used for this project?
+| Path              | Contents                                                  |
+| ----------------- | --------------------------------------------------------- |
+| `src/lib/api.ts`  | Every backend call. The only module that reads the API URL |
+| `src/components/ui/` | shadcn primitives — edit only to change design tokens   |
+| `src/components/` | Feature components, grouped by domain                      |
+| `src/pages/`      | Route components, one directory per agent persona          |
+| `src/index.css`   | Design tokens for both themes                              |
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Design constraints for this codebase are in [`../CLAUDE.md`](../CLAUDE.md).
