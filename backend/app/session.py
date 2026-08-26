@@ -101,3 +101,37 @@ class TTLCache:
     def __iter__(self) -> Iterator[str]:
         with self._lock:
             return iter(list(self._entries))
+
+
+class SessionStore:
+    """The three pieces of per-call state, bounded together.
+
+    ``conversations`` holds the message history sent to the model,
+    ``metadata`` the persona and lead details for the call, and ``audio`` the
+    pending synthesis requests that a stream URL resolves against.
+
+    Audio requests expire far sooner than sessions: a stream URL is fetched
+    within seconds of being handed out, so holding them for a full session TTL
+    would only accumulate dead entries.
+    """
+
+    def __init__(
+        self,
+        session_ttl: float,
+        session_max: int,
+        audio_ttl: float,
+        audio_max: int,
+        clock: Callable[[], float] = monotonic,
+    ) -> None:
+        self.conversations = TTLCache(session_ttl, session_max, clock)
+        self.metadata = TTLCache(session_ttl, session_max, clock)
+        self.audio = TTLCache(audio_ttl, audio_max, clock)
+
+    def prune(self) -> int:
+        return (
+            self.conversations.prune() + self.metadata.prune() + self.audio.prune()
+        )
+
+    @property
+    def active_sessions(self) -> int:
+        return len(self.conversations)
