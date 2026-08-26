@@ -1,20 +1,33 @@
 [project]
-name = "backend"
+name = "voiceflow-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Outbound voice agent: Twilio telephony, Azure OpenAI conversation, Murf TTS, Salesforce sync"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.127.0",
-    "httpx>=0.28.1",
-    "murf>=2.2.4",
-    "openai>=2.14.0",
-    "pyaudio>=0.2.14",
-    "pydantic>=2.12.5",
-    "pydub>=0.25.1",
-    "python-multipart>=0.0.21",
-    "requests>=2.32.5",
-    "simple-salesforce>=1.12.9",
-    "twilio>=9.9.0",
     "uvicorn[standard]>=0.40.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.21",
+    "httpx>=0.28.1",
+    "openai>=2.14.0",
+    "murf>=2.2.4",
+    "twilio>=9.9.0",
+    "simple-salesforce>=1.12.9",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.uv]
+package = false
