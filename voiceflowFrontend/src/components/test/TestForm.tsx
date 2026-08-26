@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, User, Mail, Building, MapPin, Banknote, Home, Send } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type StartCallResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import { AIConfig, AIConfigForm } from "./AIConfigForm";
 interface TestFormProps {
   agentType: AgentType;
   testMode: TestMode;
-  onSubmit?: (data: any) => void;
+  onSubmit?: (session: StartCallResponse & { lead_name: string; language: string }) => void;
 }
 
 export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {

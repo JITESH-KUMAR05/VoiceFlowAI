@@ -1,62 +1,81 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import Index from "./pages/Index";
-import AgentDashboard from "./pages/agent/AgentDashboard";
+import NotFound from "./pages/NotFound";
 import AgentAnalytics from "./pages/agent/AgentAnalytics";
 import AgentCRM from "./pages/agent/AgentCRM";
+import AgentCalls from "./pages/agent/AgentCalls";
+import AgentDashboard from "./pages/agent/AgentDashboard";
+import AgentTest from "./pages/agent/AgentTest";
+import AgentUserDetail from "./pages/agent/AgentUserDetail";
 import AgentUsers from "./pages/agent/AgentUsers";
-import NotFound from "./pages/NotFound";
-
-// B2B Sales Agent Pages
-import B2BTest from "./pages/b2b/B2BTest";
-import B2BLiveCall from "./pages/b2b/B2BLiveCall";
-import B2BCalls from "./pages/b2b/B2BCalls";
-import B2BUserDetail from "./pages/b2b/B2BUserDetail";
-
-// Real Estate Agent Pages
-import RealEstateTest from "./pages/real-estate/RealEstateTest";
-import RealEstateLiveCall from "./pages/real-estate/RealEstateLiveCall";
-import RealEstateCalls from "./pages/real-estate/RealEstateCalls";
-import RealEstateUserDetail from "./pages/real-estate/RealEstateUserDetail";
+import type { AgentType } from "./types/agent";
 
 const queryClient = new QueryClient();
 
+/**
+ * Both agents run the same screens, so the routes are generated per agent
+ * rather than written out twice.
+ */
+const AGENTS: AgentType[] = ["b2b", "real-estate"];
+
+function agentRoutes(agentType: AgentType) {
+  const base = `/${agentType}`;
+  return [
+    <Route
+      key={base}
+      path={base}
+      element={<AgentDashboard agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/test`}
+      path={`${base}/test`}
+      element={<AgentTest agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/crm`}
+      path={`${base}/crm`}
+      element={<AgentCRM agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/crm/users`}
+      path={`${base}/crm/users`}
+      element={<AgentUsers agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/crm/calls`}
+      path={`${base}/crm/calls`}
+      element={<AgentCalls agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/crm/user/:id`}
+      path={`${base}/crm/user/:id`}
+      element={<AgentUserDetail agentType={agentType} />}
+    />,
+    <Route
+      key={`${base}/analytics`}
+      path={`${base}/analytics`}
+      element={<AgentAnalytics agentType={agentType} />}
+    />,
+  ];
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      {/* [FIX] Add future flags */}
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
-          {/* Home */}
           <Route path="/" element={<Index />} />
-          
-          {/* B2B Sales Agent Routes */}
-          <Route path="/b2b" element={<AgentDashboard agentType="b2b" />} />
-          <Route path="/b2b/test" element={<B2BTest />} />
-          <Route path="/b2b/live-call" element={<B2BLiveCall />} />
-          <Route path="/b2b/crm" element={<AgentCRM agentType="b2b" />} />
-          <Route path="/b2b/crm/users" element={<AgentUsers agentType="b2b" />} />
-          <Route path="/b2b/crm/calls" element={<B2BCalls />} />
-          <Route path="/b2b/crm/user/:id" element={<B2BUserDetail />} />
-          <Route path="/b2b/analytics" element={<AgentAnalytics agentType="b2b" />} />
-          
-          {/* Real Estate Agent Routes */}
-          <Route path="/real-estate" element={<AgentDashboard agentType="real-estate" />} />
-          <Route path="/real-estate/test" element={<RealEstateTest />} />
-          <Route path="/real-estate/live-call" element={<RealEstateLiveCall />} />
-          <Route path="/real-estate/crm" element={<AgentCRM agentType="real-estate" />} />
-          <Route path="/real-estate/crm/users" element={<AgentUsers agentType="real-estate" />} />
-          <Route path="/real-estate/crm/calls" element={<RealEstateCalls />} />
-          <Route path="/real-estate/crm/user/:id" element={<RealEstateUserDetail />} />
-          <Route path="/real-estate/analytics" element={<AgentAnalytics agentType="real-estate" />} />
-          
-          {/* Catch-all */}
+          {AGENTS.flatMap(agentRoutes)}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

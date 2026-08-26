@@ -22,7 +22,7 @@ interface AgentLayoutProps {
 const getNavItems = (basePath: string) => [
   { path: basePath, label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: `${basePath}/crm`, label: "CRM", icon: Users },
-  { path: `${basePath}/live-call`, label: "Live Call", icon: Phone },
+  { path: `${basePath}/test`, label: "Start a call", icon: Phone },
   { path: `${basePath}/analytics`, label: "Analytics", icon: BarChart3 },
 ];
 
@@ -125,14 +125,13 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
           </nav>
 
           <Link
-            to={`${config.basePath}/live-call`}
+            to={`${config.basePath}/test`}
             className={cn(
               "hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg shadow-lg hover:opacity-90 transition-opacity",
               "bg-primary text-primary-foreground"
             )}
           >
-            <div className="h-2 w-2 rounded-full bg-current animate-pulse" />
-            Start Call
+            Start a call
           </Link>
         </div>
       </motion.header>

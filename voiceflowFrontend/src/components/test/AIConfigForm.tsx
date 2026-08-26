@@ -14,12 +14,12 @@ interface AIConfigFormProps {
 }
 
 // [FIX] Updated Languages List
+// Only the locales personas.py actually has voices for. Telugu and Gujarati
+// were offered here previously and silently fell back to a US English voice.
 const languages = [
   { value: "en-IN", label: "English - India" },
   { value: "hi-IN", label: "Hindi - India" },
-  { value: "te-IN", label: "Telugu - India" },
   { value: "pa-IN", label: "Punjabi - India" },
-  { value: "gu-IN", label: "Gujarati - India" },
 ];
 
 // [FIX] Updated Voices List based on your JSON
@@ -28,7 +28,6 @@ const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
     { value: "en-IN-anisha", label: "Anisha" },
     { value: "en-IN-anusha", label: "Anusha" },
     { value: "en-IN-nikhil", label: "Nikhil" },
-    { value: "en-US-ronnie", label: "Ronnie" },
     { value: "en-IN-samar", label: "Samar" },
     { value: "en-IN-tanushree", label: "Tanushree" },
   ],
@@ -38,23 +37,10 @@ const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
     { value: "hi-IN-khyati", label: "Khyati" },
     { value: "hi-IN-namrita", label: "Namrita" },
     { value: "hi-IN-sunaina", label: "Sunaina" },
-    { value: "en-US-zion", label: "Zion" },
   ],
-  "te-IN": [
-    { value: "en-US-josie", label: "Josie" },
-    { value: "en-US-ronnie", label: "Ronnie" },
-  ],
-  "pa-IN": [
-    { value: "en-US-alicia", label: "Alicia" },
-    { value: "pa-IN-harman", label: "Harman" },
-    { value: "en-US-lia", label: "Lia" },
-    { value: "en-US-zion", label: "Zion" },
-  ],
-  "gu-IN": [
-    { value: "en-US-lia", label: "Lia" },
-    { value: "en-US-ronnie", label: "Ronnie" },
-  ],
+  "pa-IN": [{ value: "pa-IN-harman", label: "Harman" }],
 };
+
 
 const models = [
   { value: "gpt-4o", label: "GPT-4o" },

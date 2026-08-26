@@ -27,7 +27,7 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
   const [transcript, setTranscript] = useState("");
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // 1. Initialize & Play Greeting
   useEffect(() => {
@@ -41,13 +41,15 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
 
     // Setup Speech Recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const SpeechRecognition =
+            window.SpeechRecognition ?? window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = session.language || 'en-IN'; 
 
-        recognitionRef.current.onresult = (event: any) => {
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
             const current = event.resultIndex;
             const transcriptText = event.results[current][0].transcript;
             setTranscript(transcriptText);
