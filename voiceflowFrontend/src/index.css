@@ -1,93 +1,150 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* VoiceFlow design tokens.
+ *
+ * This is an operations console for a telephony product, so it borrows from
+ * that world rather than from SaaS marketing. Surfaces are flat and bordered
+ * like a instrument panel. Saturated colour is treated as signal: amber means
+ * a line is live, the way an on-air lamp does, and it is never used for
+ * decoration. The interactive accent is a deep ink blue that stays out of the
+ * way of those states.
+ *
+ * Typography does the heavy lifting. IBM Plex Sans Condensed sets headings,
+ * Plex Sans sets the interface, and Plex Mono is reserved for values the
+ * system produced: call SIDs, phone numbers, durations, latencies, scores.
+ * That split is how the UI tells you what is data and what is chrome.
+ *
+ * Light is the default. Both themes are defined here in full; no colour is
+ * declared only inside a media query.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-
-
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Warm neutrals. A slight warmth keeps long sessions from feeling
+     * clinical without reading as a cream "editorial" palette. */
+    --background: 40 20% 97%;
+    --foreground: 30 8% 12%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 30 8% 12%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 8% 12%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
+    /* Interactive accent. Deep enough to hold white text at small sizes. */
+    --primary: 222 45% 32%;
+    --primary-foreground: 40 20% 97%;
 
-    --secondary: 160 84% 39%;
-    --secondary-foreground: 222 47% 6%;
+    --secondary: 40 12% 93%;
+    --secondary-foreground: 30 8% 20%;
 
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 40 12% 93%;
+    --muted-foreground: 35 6% 42%;
 
-    --accent: 222 30% 12%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 40 14% 90%;
+    --accent-foreground: 30 8% 15%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 2 62% 46%;
+    --destructive-foreground: 40 20% 97%;
 
-    --border: 222 30% 16%;
-    --input: 222 30% 14%;
-    --ring: 199 89% 48%;
+    --border: 38 12% 87%;
+    --input: 38 12% 84%;
+    --ring: 222 45% 32%;
 
-    --radius: 0.75rem;
+    /* Call state. The only saturated colour in the interface. */
+    --live: 35 92% 45%; /* a line is open right now */
+    --live-foreground: 30 40% 12%;
+    --connected: 152 42% 32%; /* completed, answered */
+    --connected-foreground: 40 20% 97%;
+    --warning: 35 80% 38%;
+    --warning-foreground: 40 20% 97%;
 
-    /* Custom tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(199 89% 48%), hsl(186 100% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(160 84% 39%), hsl(142 76% 46%));
-    --gradient-accent: linear-gradient(135deg, hsl(280 70% 50%), hsl(320 80% 55%));
-    --gradient-surface: linear-gradient(180deg, hsl(222 47% 10%), hsl(222 47% 6%));
-    
-    --glow-primary: 0 0 40px hsl(199 89% 48% / 0.3);
-    --glow-secondary: 0 0 40px hsl(160 84% 39% / 0.3);
-    
-    --shadow-card: 0 4px 24px -4px hsl(0 0% 0% / 0.4);
-    --shadow-elevated: 0 8px 32px -8px hsl(0 0% 0% / 0.5);
+    /* Lead score bands, matching the backend thresholds in
+     * salesforce_service.sentiment_for_score. */
+    --score-high: 152 42% 32%; /* 70-100  Interested */
+    --score-mid: 35 80% 40%; /*  40-69   Neutral */
+    --score-low: 2 62% 46%; /*   0-39    Not interested */
 
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 16%;
-    --sidebar-ring: 199 89% 48%;
+    /* Charts. Sequential steps of the accent, so a chart reads as one
+     * material rather than a set of unrelated hues. */
+    --chart-1: 222 45% 32%;
+    --chart-2: 205 42% 44%;
+    --chart-3: 188 34% 46%;
+    --chart-4: 152 30% 42%;
+    --chart-5: 35 55% 48%;
+
+    --radius: 0.25rem;
+
+    --sidebar-background: 40 16% 95%;
+    --sidebar-foreground: 30 8% 20%;
+    --sidebar-primary: 222 45% 32%;
+    --sidebar-primary-foreground: 40 20% 97%;
+    --sidebar-accent: 40 14% 90%;
+    --sidebar-accent-foreground: 30 8% 15%;
+    --sidebar-border: 38 12% 87%;
+    --sidebar-ring: 222 45% 32%;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 160 84% 39%;
-    --secondary-foreground: 222 47% 6%;
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 222 30% 12%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 30% 16%;
-    --input: 222 30% 14%;
-    --ring: 199 89% 48%;
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 16%;
-    --sidebar-ring: 199 89% 48%;
+    --background: 30 8% 8%;
+    --foreground: 40 15% 92%;
+
+    --card: 30 7% 11%;
+    --card-foreground: 40 15% 92%;
+
+    --popover: 30 7% 13%;
+    --popover-foreground: 40 15% 92%;
+
+    /* Lifted well above the light-mode accent: a deep blue on a dark ground
+     * fails contrast at body sizes. */
+    --primary: 219 58% 68%;
+    --primary-foreground: 30 8% 10%;
+
+    --secondary: 30 6% 16%;
+    --secondary-foreground: 40 15% 88%;
+
+    --muted: 30 6% 16%;
+    --muted-foreground: 35 6% 62%;
+
+    --accent: 30 6% 19%;
+    --accent-foreground: 40 15% 92%;
+
+    --destructive: 2 68% 60%;
+    --destructive-foreground: 30 8% 10%;
+
+    --border: 30 6% 20%;
+    --input: 30 6% 24%;
+    --ring: 219 58% 68%;
+
+    --live: 38 95% 58%;
+    --live-foreground: 30 25% 10%;
+    --connected: 152 45% 48%;
+    --connected-foreground: 30 8% 10%;
+    --warning: 38 90% 56%;
+    --warning-foreground: 30 25% 10%;
+
+    --score-high: 152 45% 48%;
+    --score-mid: 38 90% 56%;
+    --score-low: 2 68% 60%;
+
+    --chart-1: 219 58% 68%;
+    --chart-2: 200 48% 60%;
+    --chart-3: 184 40% 56%;
+    --chart-4: 152 38% 54%;
+    --chart-5: 38 62% 60%;
+
+    --sidebar-background: 30 7% 10%;
+    --sidebar-foreground: 40 15% 88%;
+    --sidebar-primary: 219 58% 68%;
+    --sidebar-primary-foreground: 30 8% 10%;
+    --sidebar-accent: 30 6% 17%;
+    --sidebar-accent-foreground: 40 15% 92%;
+    --sidebar-border: 30 6% 20%;
+    --sidebar-ring: 219 58% 68%;
   }
 }
 
@@ -98,47 +155,59 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv05' 1; /* single-storey l, easier to tell from 1 */
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Values the system produced are always tabular, so columns of numbers
+   * line up and a changing duration does not shift its own layout. */
+  .font-mono,
+  code,
+  kbd,
+  samp {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl shadow-card;
+  /* The standard surface: flat, bordered, sitting on the warm ground.
+   * Replaces the backdrop-blur "glass" card. */
+  .panel {
+    @apply bg-card text-card-foreground border border-border rounded-md;
   }
-  
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-primary);
+
+  /* An eyebrow above a section or beside a value. */
+  .label-caps {
+    @apply font-mono text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted-foreground;
   }
-  
-  .gradient-text-secondary {
-    @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-secondary);
+
+  /* Status pill. Colour comes from the state, never from the layout. */
+  .status-dot {
+    @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full;
   }
-  
-  .glow-primary {
-    box-shadow: var(--glow-primary);
-  }
-  
-  .glow-secondary {
-    box-shadow: var(--glow-secondary);
-  }
-  
-  .gradient-border {
-    position: relative;
-  }
-  
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: var(--gradient-primary);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+}
+
+@layer utilities {
+  /* Nothing decorative should move. The only animation in the interface
+   * marks a line that is currently open, and it stops for anyone who has
+   * asked for reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

@@ -18,11 +18,11 @@ export function CRMSidebar({ agentType }: CRMSidebarProps) {
   const location = useLocation();
   const config = agentConfigs[agentType];
   const navItems = getCRMNavItems(config.basePath);
-  const isPrimary = config.color === "primary";
+  const isPrimary = agentType === "b2b";
 
   return (
     <aside className="w-64 shrink-0 hidden lg:block">
-      <div className="glass-card p-4 sticky top-28">
+      <div className="panel p-4 sticky top-28">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4 px-3">CRM Navigation</h3>
         <nav className="space-y-1">
           {navItems.map((item) => {
@@ -37,7 +37,7 @@ export function CRMSidebar({ agentType }: CRMSidebarProps) {
                 className={cn(
                   "relative flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   isActive
-                    ? isPrimary ? "text-primary" : "text-secondary"
+                    ? "text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 )}
               >
@@ -46,9 +46,7 @@ export function CRMSidebar({ agentType }: CRMSidebarProps) {
                     layoutId={`crm-nav-${agentType}`}
                     className={cn(
                       "absolute inset-0 rounded-lg border",
-                      isPrimary 
-                        ? "bg-primary/10 border-primary/20"
-                        : "bg-secondary/10 border-secondary/20"
+                      "bg-primary/10 border-primary/20"
                     )}
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />

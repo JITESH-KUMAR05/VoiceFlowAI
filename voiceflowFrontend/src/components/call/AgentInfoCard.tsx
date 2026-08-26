@@ -36,17 +36,15 @@ export function AgentInfoCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4 }}
       className={cn(
-        "glass-card p-6 relative overflow-hidden",
-        isPrimary ? "border-primary/20" : "border-secondary/20"
+        "panel p-6 relative overflow-hidden",
+        "border-primary/20"
       )}
     >
       {/* Gradient accent */}
       <div
         className={cn(
           "absolute top-0 left-0 right-0 h-1",
-          isPrimary
-            ? "bg-gradient-to-r from-primary to-cyan-400"
-            : "bg-gradient-to-r from-secondary to-emerald-400"
+          "bg-primary"
         )}
       />
 
@@ -54,7 +52,7 @@ export function AgentInfoCard({
         <div
           className={cn(
             "h-2 w-2 rounded-full",
-            isPrimary ? "bg-primary" : "bg-secondary"
+            "bg-primary"
           )}
         />
         About This Agent
@@ -72,13 +70,13 @@ export function AgentInfoCard({
             <div
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
-                isPrimary ? "bg-primary/10" : "bg-secondary/10"
+                "bg-primary/10"
               )}
             >
               <item.icon
                 className={cn(
                   "h-4 w-4",
-                  isPrimary ? "text-primary" : "text-secondary"
+                  "text-primary"
                 )}
               />
             </div>
@@ -94,7 +92,7 @@ export function AgentInfoCard({
       {features && features.length > 0 && (
         <div className="mt-6 pt-4 border-t border-border">
           <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-            <Briefcase className={cn("h-4 w-4", isPrimary ? "text-primary" : "text-secondary")} />
+            <Briefcase className={cn("h-4 w-4", "text-primary")} />
             Key Capabilities
           </h4>
           <div className="space-y-2">
@@ -106,7 +104,7 @@ export function AgentInfoCard({
                 transition={{ delay: 0.4 + index * 0.05 }}
                 className="flex items-center gap-2 text-sm text-muted-foreground"
               >
-                <CheckCircle className={cn("h-3.5 w-3.5", isPrimary ? "text-primary" : "text-secondary")} />
+                <CheckCircle className={cn("h-3.5 w-3.5", "text-primary")} />
                 {feature}
               </motion.div>
             ))}

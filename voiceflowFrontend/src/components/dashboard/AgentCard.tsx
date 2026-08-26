@@ -36,16 +36,14 @@ export function AgentCard({
       className={cn(
         "relative group overflow-hidden rounded-2xl border p-8",
         "bg-gradient-to-b from-card to-card/50 backdrop-blur-xl",
-        isPrimary ? "border-primary/20 hover:border-primary/40" : "border-secondary/20 hover:border-secondary/40"
+        "border-primary/20 hover:border-primary/40"
       )}
     >
       {/* Gradient overlay */}
       <div
         className={cn(
           "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-          isPrimary
-            ? "bg-gradient-to-br from-primary/5 to-transparent"
-            : "bg-gradient-to-br from-secondary/5 to-transparent"
+          "bg-gradient-to-br from-primary/5 to-transparent"
         )}
       />
 
@@ -53,7 +51,7 @@ export function AgentCard({
       <div
         className={cn(
           "absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl transition-opacity duration-500 opacity-0 group-hover:opacity-100",
-          isPrimary ? "bg-primary/20" : "bg-secondary/20"
+          "bg-primary/20"
         )}
       />
 
@@ -63,9 +61,7 @@ export function AgentCard({
           <div
             className={cn(
               "flex h-14 w-14 items-center justify-center rounded-xl shadow-lg",
-              isPrimary
-                ? "bg-gradient-to-br from-primary to-cyan-400"
-                : "bg-gradient-to-br from-secondary to-emerald-400"
+              "bg-primary"
             )}
           >
             <Icon className="h-7 w-7 text-primary-foreground" />
@@ -89,13 +85,13 @@ export function AgentCard({
               <div
                 className={cn(
                   "flex h-5 w-5 items-center justify-center rounded-full",
-                  isPrimary ? "bg-primary/20" : "bg-secondary/20"
+                  "bg-primary/20"
                 )}
               >
                 <Check
                   className={cn(
                     "h-3 w-3",
-                    isPrimary ? "text-primary" : "text-secondary"
+                    "text-primary"
                   )}
                 />
               </div>
@@ -111,9 +107,7 @@ export function AgentCard({
               key={index}
               className={cn(
                 "px-3 py-1 text-xs font-medium rounded-full border",
-                isPrimary
-                  ? "bg-primary/10 border-primary/20 text-primary"
-                  : "bg-secondary/10 border-secondary/20 text-secondary"
+                "bg-primary/10 border-primary/20 text-primary"
               )}
             >
               {tag}
@@ -124,7 +118,7 @@ export function AgentCard({
         {/* CTA */}
         <Link to={ctaLink}>
           <Button
-            variant={isPrimary ? "gradient" : "gradient-secondary"}
+            variant="default"
             size="lg"
             className="w-full group/btn"
           >

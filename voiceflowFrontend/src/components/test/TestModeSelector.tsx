@@ -21,9 +21,7 @@ export function TestModeSelector({ mode, onChange, agentType }: TestModeSelector
         className={cn(
           "flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200",
           mode === "phone"
-            ? isPrimary
-              ? "bg-primary text-primary-foreground shadow-lg"
-              : "bg-secondary text-secondary-foreground shadow-lg"
+            ? "bg-primary text-primary-foreground shadow-lg"
             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
       >
@@ -36,9 +34,7 @@ export function TestModeSelector({ mode, onChange, agentType }: TestModeSelector
         className={cn(
           "flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200",
           mode === "browser"
-            ? isPrimary
-              ? "bg-primary text-primary-foreground shadow-lg"
-              : "bg-secondary text-secondary-foreground shadow-lg"
+            ? "bg-primary text-primary-foreground shadow-lg"
             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
       >

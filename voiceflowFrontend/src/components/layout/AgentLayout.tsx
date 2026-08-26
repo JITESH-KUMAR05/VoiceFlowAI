@@ -30,7 +30,7 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
   const location = useLocation();
   const config = agentConfigs[agentType];
   const navItems = getNavItems(config.basePath);
-  const isPrimary = config.color === "primary";
+  const isPrimary = agentType === "b2b";
 
   // Build breadcrumb
   const pathParts = location.pathname.split("/").filter(Boolean);
@@ -45,11 +45,11 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className={cn(
           "absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-20",
-          isPrimary ? "bg-primary" : "bg-secondary"
+          "bg-primary"
         )} />
         <div className={cn(
           "absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-10",
-          isPrimary ? "bg-cyan-500" : "bg-emerald-500"
+          "bg-cyan-500"
         )} />
       </div>
 
@@ -73,9 +73,7 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
             <Link to={config.basePath} className="flex items-center gap-3">
               <div className={cn(
                 "relative flex h-10 w-10 items-center justify-center rounded-xl shadow-lg",
-                isPrimary 
-                  ? "bg-gradient-to-br from-primary to-cyan-400"
-                  : "bg-gradient-to-br from-secondary to-emerald-400"
+                "bg-primary"
               )}>
                 {isPrimary ? (
                   <Zap className="h-5 w-5 text-primary-foreground" />
@@ -105,7 +103,7 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
                   className={cn(
                     "relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200",
                     shouldHighlight
-                      ? isPrimary ? "text-primary" : "text-secondary"
+                      ? "text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >
@@ -116,9 +114,7 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
                       layoutId={`agent-nav-${agentType}`}
                       className={cn(
                         "absolute inset-0 rounded-lg border",
-                        isPrimary 
-                          ? "bg-primary/10 border-primary/20"
-                          : "bg-secondary/10 border-secondary/20"
+                        "bg-primary/10 border-primary/20"
                       )}
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
@@ -132,9 +128,7 @@ export function AgentLayout({ children, agentType }: AgentLayoutProps) {
             to={`${config.basePath}/live-call`}
             className={cn(
               "hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg shadow-lg hover:opacity-90 transition-opacity",
-              isPrimary 
-                ? "bg-gradient-to-r from-primary to-cyan-400 text-primary-foreground"
-                : "bg-gradient-to-r from-secondary to-emerald-400 text-secondary-foreground"
+              "bg-primary text-primary-foreground"
             )}
           >
             <div className="h-2 w-2 rounded-full bg-current animate-pulse" />

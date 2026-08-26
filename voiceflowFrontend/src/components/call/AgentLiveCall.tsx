@@ -83,7 +83,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
   const [callDuration, setCallDuration] = useState(0);
 
   const config = agentConfigs[agentType];
-  const isPrimary = config.color === "primary";
+  const isPrimary = agentType === "b2b";
   const mockMessages = agentType === "b2b" ? b2bMessages : realEstateMessages;
   const objections = agentType === "b2b" ? b2bObjections : realEstateObjections;
   const suggestions = agentType === "b2b" ? b2bSuggestions : realEstateSuggestions;
@@ -138,8 +138,8 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className={cn(
-            "glass-card p-6",
-            callStatus === "ringing" && (isPrimary ? "border-primary/50" : "border-secondary/50"),
+            "panel p-6",
+            callStatus === "ringing" && ("border-primary/50"),
             callStatus === "ringing" && "animate-pulse"
           )}
         >
@@ -149,7 +149,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
                 className={cn(
                   "h-16 w-16 rounded-full flex items-center justify-center",
                   callStatus === "ringing"
-                    ? isPrimary ? "bg-primary/20" : "bg-secondary/20"
+                    ? "bg-primary/20"
                     : callStatus === "in-progress"
                     ? "bg-secondary/20"
                     : "bg-muted"
@@ -159,7 +159,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
                   className={cn(
                     "h-8 w-8",
                     callStatus === "ringing"
-                      ? isPrimary ? "text-primary" : "text-secondary"
+                      ? "text-primary"
                       : callStatus === "in-progress"
                       ? "text-secondary"
                       : "text-muted-foreground"
@@ -184,7 +184,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
               <Badge
                 className={cn(
                   callStatus === "ringing"
-                    ? isPrimary ? "bg-primary/20 text-primary" : "bg-secondary/20 text-secondary"
+                    ? "bg-primary/20 text-primary"
                     : callStatus === "in-progress"
                     ? "bg-secondary/20 text-secondary"
                     : "bg-muted text-muted-foreground"
@@ -197,9 +197,9 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
         </motion.div>
 
         {/* Live Transcript */}
-        <div className="glass-card p-6 h-96 flex flex-col">
+        <div className="panel p-6 h-96 flex flex-col">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <MessageSquare className={cn("h-5 w-5", isPrimary ? "text-primary" : "text-secondary")} />
+            <MessageSquare className={cn("h-5 w-5", "text-primary")} />
             Live Transcript
           </h3>
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -218,7 +218,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
                     className={cn(
                       "max-w-[80%] p-4 rounded-2xl",
                       message.speaker === "ai"
-                        ? isPrimary ? "bg-primary/10 rounded-bl-none" : "bg-secondary/10 rounded-bl-none"
+                        ? "bg-primary/10 rounded-bl-none"
                         : "bg-muted rounded-br-none"
                     )}
                   >
@@ -227,7 +227,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
                         className={cn(
                           "text-xs font-medium",
                           message.speaker === "ai"
-                            ? isPrimary ? "text-primary" : "text-secondary"
+                            ? "text-primary"
                             : "text-muted-foreground"
                         )}
                       >
@@ -243,9 +243,9 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
             {callStatus === "in-progress" && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <div className="flex gap-1">
-                  <div className={cn("w-2 h-2 rounded-full animate-bounce", isPrimary ? "bg-primary" : "bg-secondary")} style={{ animationDelay: "0ms" }} />
-                  <div className={cn("w-2 h-2 rounded-full animate-bounce", isPrimary ? "bg-primary" : "bg-secondary")} style={{ animationDelay: "150ms" }} />
-                  <div className={cn("w-2 h-2 rounded-full animate-bounce", isPrimary ? "bg-primary" : "bg-secondary")} style={{ animationDelay: "300ms" }} />
+                  <div className={cn("w-2 h-2 rounded-full animate-bounce", "bg-primary")} style={{ animationDelay: "0ms" }} />
+                  <div className={cn("w-2 h-2 rounded-full animate-bounce", "bg-primary")} style={{ animationDelay: "150ms" }} />
+                  <div className={cn("w-2 h-2 rounded-full animate-bounce", "bg-primary")} style={{ animationDelay: "300ms" }} />
                 </div>
                 <span className="text-sm">Listening...</span>
               </div>
@@ -256,7 +256,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
         {/* Call Controls */}
         <div className="flex items-center justify-center gap-4">
           <Button
-            variant="glass"
+            variant="outline"
             size="lg"
             onClick={() => setIsMuted(!isMuted)}
             className={cn(isMuted && "bg-destructive/20 border-destructive/30")}
@@ -272,10 +272,10 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
             <PhoneOff className="h-5 w-5 mr-2" />
             End Call
           </Button>
-          <Button variant={isPrimary ? "gradient" : "gradient-secondary"} size="lg">
+          <Button variant="default" size="lg">
             <ThumbsUp className="h-5 w-5" />
           </Button>
-          <Button variant="glass" size="lg">
+          <Button variant="outline" size="lg">
             <ThumbsDown className="h-5 w-5" />
           </Button>
         </div>
@@ -287,10 +287,10 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="glass-card p-6"
+          className="panel p-6"
         >
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Brain className={cn("h-5 w-5", isPrimary ? "text-primary" : "text-secondary")} />
+            <Brain className={cn("h-5 w-5", "text-primary")} />
             AI Insights
           </h3>
           <div className="space-y-4">
@@ -310,7 +310,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
                     animate={{ width: sentiment === "positive" ? "75%" : sentiment === "neutral" ? "50%" : "25%" }}
                     className={cn(
                       "h-full rounded-full",
-                      isPrimary ? "bg-gradient-to-r from-primary to-cyan-400" : "bg-gradient-to-r from-secondary to-emerald-400"
+                      "bg-primary"
                     )}
                   />
                 </div>
@@ -328,7 +328,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.05 }}
-            className="glass-card p-6"
+            className="panel p-6"
           >
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Building2 className="h-5 w-5 text-secondary" />
@@ -365,7 +365,7 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-card p-6"
+          className="panel p-6"
         >
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -385,15 +385,15 @@ export function AgentLiveCall({ agentType }: AgentLiveCallProps) {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass-card p-6"
+          className="panel p-6"
         >
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <MessageSquare className={cn("h-5 w-5", isPrimary ? "text-primary" : "text-secondary")} />
+            <MessageSquare className={cn("h-5 w-5", "text-primary")} />
             Suggested Responses
           </h3>
           <div className="space-y-3">
             {suggestions.map((suggestion, index) => (
-              <Button key={index} variant="glass" className="w-full justify-start text-left h-auto py-3">
+              <Button key={index} variant="outline" className="w-full justify-start text-left h-auto py-3">
                 <span className="text-sm">{suggestion}</span>
               </Button>
             ))}
