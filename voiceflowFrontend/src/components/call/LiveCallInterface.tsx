@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Mic, MicOff, Volume2, Loader2, PhoneOff } from "lucide-react"; 
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -108,16 +109,7 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
     setMessages(prev => [...prev, userMsg]);
 
     try {
-        const response = await fetch("http://localhost:8000/api/browser/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                session_id: session.call_sid,
-                message: transcript
-            })
-        });
-
-        const data = await response.json();
+        const data = await api.sendMessage(session.call_sid, transcript);
         
         // Add AI Message
         setMessages(prev => [...prev, { id: Date.now().toString(), role: "ai", text: data.text }]);
@@ -142,14 +134,7 @@ export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
     setStatus("idle");
 
     try {
-        await fetch("http://localhost:8000/api/browser/end", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                session_id: session.call_sid,
-                message: "END_CALL"
-            })
-        });
+        await api.endCall(session.call_sid);
         alert("Call Ended. Check Salesforce & Email for updates!");
         window.location.reload(); // Reset for next demo
     } catch (error) {

@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,9 +53,7 @@ export function CallsTable({ calls, onViewCall }: CallsTableProps) {
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/crm/leads");
-        const data = await response.json();
-        setLeads(data);
+        setLeads(await api.leads("all"));
       } catch (error) {
         console.error("Failed to fetch CRM data:", error);
       } finally {
@@ -72,7 +71,7 @@ export function CallsTable({ calls, onViewCall }: CallsTableProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="glass-card overflow-hidden"
+      className="panel overflow-hidden"
     >
       <Table>
         <TableHeader>

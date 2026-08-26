@@ -32,7 +32,7 @@ export default function RealEstateCalls() {
               <h1 className="text-4xl font-bold text-foreground mb-2">Property Call Records</h1>
               <p className="text-muted-foreground">View all real estate call history</p>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-4 mb-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="panel p-4 mb-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-muted/50 border-border" /></div>
                 <div className="flex gap-2">{["All", "Completed", "Follow-up"].map((f) => (<Button key={f} variant={activeFilter === f ? "default" : "ghost"} size="sm" onClick={() => setActiveFilter(f)} className={cn(activeFilter === f && "bg-secondary text-secondary-foreground")}>{f}</Button>))}</div>
@@ -48,11 +48,11 @@ export default function RealEstateCalls() {
           {selectedCallData && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass-card p-4"><p className="text-sm text-muted-foreground mb-1">Lead</p><p className="font-medium text-foreground">{selectedCallData.leadName}</p></div>
-                <div className="glass-card p-4"><p className="text-sm text-muted-foreground mb-1">Duration</p><p className="font-medium text-foreground font-mono">{selectedCallData.duration}</p></div>
+                <div className="panel p-4"><p className="text-sm text-muted-foreground mb-1">Lead</p><p className="font-medium text-foreground">{selectedCallData.leadName}</p></div>
+                <div className="panel p-4"><p className="text-sm text-muted-foreground mb-1">Duration</p><p className="font-medium text-foreground font-mono">{selectedCallData.duration}</p></div>
               </div>
-              {selectedCallData.summary && <div className="glass-card p-4"><h4 className="font-medium text-foreground mb-2">Summary</h4><p className="text-sm text-muted-foreground">{selectedCallData.summary}</p></div>}
-              <div className="glass-card p-4 border-secondary/30"><h4 className="font-medium text-foreground mb-2">Next Action</h4><p className="text-sm text-secondary">{selectedCallData.nextAction}</p></div>
+              {selectedCallData.summary && <div className="panel p-4"><h4 className="font-medium text-foreground mb-2">Summary</h4><p className="text-sm text-muted-foreground">{selectedCallData.summary}</p></div>}
+              <div className="panel p-4 border-secondary/30"><h4 className="font-medium text-foreground mb-2">Next Action</h4><p className="text-sm text-secondary">{selectedCallData.nextAction}</p></div>
             </div>
           )}
         </DialogContent>

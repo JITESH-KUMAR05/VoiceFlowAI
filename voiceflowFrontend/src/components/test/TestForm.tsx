@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, User, Mail, Building, MapPin, Banknote, Home, Send } from "lucide-react";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,15 +64,7 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
       };
 
       // 2. Call Backend
-      const response = await fetch("http://localhost:8000/api/phone/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to initiate session");
-
-      const data = await response.json();
+      const data = await api.startCall(payload);
 
       // 3. Handle Success
       if (testMode === "phone") {
@@ -236,8 +229,8 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
       {/* Submit Button */}
       <Button
         type="submit"
-        variant={isPrimary ? "gradient" : "gradient-secondary"}
-        size="xl"
+        variant="default"
+        size="lg"
         className="w-full"
         disabled={isSubmitting}
       >

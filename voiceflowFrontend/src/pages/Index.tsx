@@ -52,7 +52,7 @@ export default function Index() {
           className="text-center mb-16"
         >
           <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
-            <span className="gradient-text">VoiceFlow</span> AI
+            VoiceFlow <span className="text-muted-foreground">AI</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             An outbound voice agent that places a real phone call, holds a consultative
@@ -121,7 +121,7 @@ export default function Index() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {capabilities.map((capability) => (
-              <div key={capability.title} className="glass-card p-6">
+              <div key={capability.title} className="panel p-6">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-4">
                   <capability.icon className="h-6 w-6 text-primary" />
                 </div>

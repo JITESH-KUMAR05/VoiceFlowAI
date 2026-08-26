@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import { api } from "@/lib/api";
 import { AgentLayout } from "@/components/layout/AgentLayout";
 import { CRMSidebar } from "@/components/crm/CRMSidebar";
 import { CallsTable } from "@/components/crm/CallsTable";
@@ -20,8 +21,7 @@ export default function B2BCalls() {
 
   // Fetch Real Data
   useEffect(() => {
-    fetch("http://localhost:8000/api/crm/leads?agent_type=b2b")
-      .then(res => res.json())
+    api.leads("b2b")
       .then(data => {
         const mappedCalls = data.map((lead: any) => ({
             id: lead.id,
@@ -60,7 +60,7 @@ export default function B2BCalls() {
               <p className="text-muted-foreground">View all B2B sales call history and details</p>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="glass-card p-4 mb-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="panel p-4 mb-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -92,36 +92,36 @@ export default function B2BCalls() {
           {selectedCallData && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <p className="text-sm text-muted-foreground mb-1">Lead Name</p>
                   <p className="font-medium text-foreground">{selectedCallData.leadName}</p>
                 </div>
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <p className="text-sm text-muted-foreground mb-1">Email</p>
                   <p className="font-medium text-foreground">{selectedCallData.email}</p>
                 </div>
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <p className="text-sm text-muted-foreground mb-1">Date</p>
                   <p className="font-medium text-foreground">{selectedCallData.date}</p>
                 </div>
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <p className="text-sm text-muted-foreground mb-1">Duration</p>
                   <p className="font-medium text-foreground font-mono">{selectedCallData.duration}</p>
                 </div>
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <p className="text-sm text-muted-foreground mb-1">Interest Level</p>
                   <Badge variant="outline" className="capitalize">{selectedCallData.interest}</Badge>
                 </div>
               </div>
               
               {selectedCallData.summary && (
-                <div className="glass-card p-4">
+                <div className="panel p-4">
                   <h4 className="font-medium text-foreground mb-2">Call Summary</h4>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedCallData.summary}</p>
                 </div>
               )}
 
-              <div className="glass-card p-4 border-primary/30">
+              <div className="panel p-4 border-primary/30">
                 <h4 className="font-medium text-foreground mb-2">Next Action</h4>
                 <p className="text-sm text-primary">{selectedCallData.nextAction}</p>
               </div>

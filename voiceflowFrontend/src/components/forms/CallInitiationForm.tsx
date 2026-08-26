@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, User, Building2, MapPin, Wallet, Home, Globe, Mic } from "lucide-react";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,15 +106,7 @@ export function CallInitiationForm({ variant, onSubmit }: CallInitiationFormProp
         }
       };
 
-      const response = await fetch("http://localhost:8000/api/phone/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed");
-
-      const data = await response.json();
+      const data = await api.startCall(payload);
 
       if (mode === "phone") {
         toast.success("Call Initiated", { description: "Your phone should ring shortly." });

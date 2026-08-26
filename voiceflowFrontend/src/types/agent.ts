@@ -1,4 +1,13 @@
-export type AgentType = 'b2b' | 'real-estate';
+export type AgentType = "b2b" | "real-estate";
+
+export type InterestLevel = "high" | "medium" | "low" | "none";
+export type LeadStatus =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "converted"
+  | "lost";
+export type CallOutcome = "completed" | "follow-up" | "missed";
 
 export interface User {
   id: string;
@@ -9,9 +18,9 @@ export interface User {
   budget?: string;
   location?: string;
   propertyType?: string;
-  buyOrRent?: 'buy' | 'rent';
-  interestLevel: 'high' | 'medium' | 'low' | 'none';
-  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
+  buyOrRent?: "buy" | "rent";
+  interestLevel: InterestLevel;
+  status: LeadStatus;
   createdAt: string;
   lastContactedAt?: string;
   notes?: string;
@@ -24,9 +33,9 @@ export interface Call {
   email: string;
   callDate: string;
   callTime: string;
-  interestLevel: 'high' | 'medium' | 'low' | 'none';
+  interestLevel: InterestLevel;
   duration: string;
-  status: 'completed' | 'follow-up' | 'missed';
+  status: CallOutcome;
   nextAction: string;
   summary?: string;
   objections?: string[];
@@ -36,59 +45,43 @@ export interface AgentConfig {
   type: AgentType;
   name: string;
   description: string;
-  color: 'primary' | 'secondary';
   basePath: string;
-  features: string[];
-  kpis: {
-    totalCalls: number;
-    interestedLeads: number;
-    followUpsNeeded: number;
-    avgCallDuration: string;
-    conversionRate: string;
-  };
+  /** What the agent is instructed to do on a call, in the order it does it. */
+  conversationSteps: string[];
 }
 
+/**
+ * Describes each agent persona.
+ *
+ * These are the two prompts the backend ships, so the descriptions here have
+ * to match app/personas.py. There are no metrics in this file: anything
+ * countable is counted from the leads the API returns.
+ */
 export const agentConfigs: Record<AgentType, AgentConfig> = {
   b2b: {
-    type: 'b2b',
-    name: 'B2B Sales Copilot',
-    description: 'AI phone agent for startups & MSMEs to qualify B2B leads',
-    color: 'primary',
-    basePath: '/b2b',
-    features: [
-      'Live conversation analysis',
-      'Objection handling scripts',
-      'Competitor battle cards',
-      'CRM auto-sync',
-      'Deal progression tracking',
+    type: "b2b",
+    name: "B2B Sales",
+    description:
+      "Qualifies inbound SaaS leads by phone and books a demo when the fit is there.",
+    basePath: "/b2b",
+    conversationSteps: [
+      "Ask about their current sales process",
+      "Listen for the pain point behind the answer",
+      "Explain how the product addresses that specific problem",
+      "Propose a demo",
     ],
-    kpis: {
-      totalCalls: 1247,
-      interestedLeads: 342,
-      followUpsNeeded: 89,
-      avgCallDuration: '4:32',
-      conversionRate: '27.4%',
-    },
   },
-  'real-estate': {
-    type: 'real-estate',
-    name: 'Real Estate Agent',
-    description: 'AI phone agent for real estate lead qualification',
-    color: 'secondary',
-    basePath: '/real-estate',
-    features: [
-      'Automated lead qualification',
-      'Property matching & recommendations',
-      'Site visit scheduling',
-      'Multi-language support (Hindi + English)',
-      'Investment analysis',
+  "real-estate": {
+    type: "real-estate",
+    name: "Real Estate",
+    description:
+      "Qualifies property enquiries in Hindi or English and proposes a site visit.",
+    basePath: "/real-estate",
+    conversationSteps: [
+      "Establish whether this is for investment or self-use",
+      "Ask about preferred location and budget range",
+      "Match against available inventory",
+      "Propose a site visit",
     ],
-    kpis: {
-      totalCalls: 892,
-      interestedLeads: 234,
-      followUpsNeeded: 56,
-      avgCallDuration: '5:18',
-      conversionRate: '26.2%',
-    },
   },
 };

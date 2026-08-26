@@ -36,7 +36,7 @@ const statusColors = {
 
 export function CallTable({ calls, onViewCall }: CallTableProps) {
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="panel overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

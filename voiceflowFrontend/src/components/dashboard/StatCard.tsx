@@ -1,73 +1,48 @@
-import { motion } from "framer-motion";
-import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
-  title: string;
-  value: string | number;
-  change?: string;
-  changeType?: "positive" | "negative" | "neutral";
-  icon: LucideIcon;
-  variant?: "default" | "primary" | "secondary";
+  label: string;
+  /** null renders a dash: the metric exists, there is just nothing to count. */
+  value: string | number | null;
+  /** Unit or qualifier shown after the value, e.g. "of 100" or "leads". */
+  unit?: string;
+  hint?: string;
+  className?: string;
 }
 
+/**
+ * One measured value.
+ *
+ * No trend badges. The previous version rendered hardcoded "+18%" changes
+ * against nothing, and there is no historical series behind this data to
+ * compute a real one from.
+ */
 export function StatCard({
-  title,
+  label,
   value,
-  change,
-  changeType = "neutral",
-  icon: Icon,
-  variant = "default",
+  unit,
+  hint,
+  className,
 }: StatCardProps) {
+  const isEmpty = value === null || value === "";
+
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
-      className="glass-card p-6 group"
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div
+    <div className={cn("panel p-4", className)}>
+      <p className="label-caps">{label}</p>
+      <p className="mt-2 flex items-baseline gap-1.5">
+        <span
           className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-xl transition-colors",
-            variant === "primary"
-              ? "bg-primary/10 group-hover:bg-primary/20"
-              : variant === "secondary"
-              ? "bg-secondary/10 group-hover:bg-secondary/20"
-              : "bg-muted group-hover:bg-muted/80"
+            "font-mono text-2xl font-medium tabular-nums",
+            isEmpty && "text-muted-foreground",
           )}
         >
-          <Icon
-            className={cn(
-              "h-6 w-6",
-              variant === "primary"
-                ? "text-primary"
-                : variant === "secondary"
-                ? "text-secondary"
-                : "text-muted-foreground"
-            )}
-          />
-        </div>
-        {change && (
-          <span
-            className={cn(
-              "text-xs font-medium px-2 py-1 rounded-full",
-              changeType === "positive"
-                ? "bg-secondary/10 text-secondary"
-                : changeType === "negative"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {change}
-          </span>
+          {isEmpty ? "—" : value}
+        </span>
+        {unit && !isEmpty && (
+          <span className="text-xs text-muted-foreground">{unit}</span>
         )}
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">{title}</p>
-        <p className="text-3xl font-bold text-foreground">{value}</p>
-      </div>
-    </motion.div>
+      </p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </div>
   );
 }

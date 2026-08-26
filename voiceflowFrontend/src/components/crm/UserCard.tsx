@@ -35,7 +35,7 @@ export function UserCard({ user, agentType, index }: UserCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="glass-card p-5 hover:border-border transition-colors"
+      className="panel p-5 hover:border-border transition-colors"
     >
       <div className="flex items-start justify-between mb-4">
         <div>

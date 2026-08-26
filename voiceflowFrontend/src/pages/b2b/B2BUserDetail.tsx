@@ -31,7 +31,7 @@ export default function B2BUserDetail() {
     return (
       <AgentLayout agentType="b2b">
         <div className="container mx-auto px-6 py-12">
-          <div className="glass-card p-12 text-center">
+          <div className="panel p-12 text-center">
             <p className="text-muted-foreground">User not found.</p>
             <Link to="/b2b/crm/users">
               <Button variant="ghost" className="mt-4">Back to Users</Button>
@@ -67,7 +67,7 @@ export default function B2BUserDetail() {
             transition={{ duration: 0.6 }}
             className="lg:col-span-1"
           >
-            <div className="glass-card p-6 sticky top-28">
+            <div className="panel p-6 sticky top-28">
               <div className="mb-6">
                 <h1 className="text-2xl font-bold text-foreground mb-2">{user.name}</h1>
                 <div className="flex flex-wrap gap-2">
@@ -116,7 +116,7 @@ export default function B2BUserDetail() {
 
               <div className="mt-6">
                 <Link to="/b2b/live-call">
-                  <Button variant="gradient" className="w-full">
+                  <Button variant="default" className="w-full">
                     Start New Call
                   </Button>
                 </Link>
@@ -131,7 +131,7 @@ export default function B2BUserDetail() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="lg:col-span-2"
           >
-            <div className="glass-card p-6">
+            <div className="panel p-6">
               <h2 className="text-xl font-bold text-foreground mb-6">Call History</h2>
               
               {userCalls.length === 0 ? (
