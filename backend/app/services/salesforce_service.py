@@ -15,7 +15,8 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any
+from time import monotonic
+from typing import Any, Callable
 
 from simple_salesforce import Salesforce
 
@@ -27,6 +28,10 @@ MAX_TRANSCRIPT_CHARS = 131_000
 TASK_TRANSCRIPT_CHARS = 3_000
 SYNC_ATTEMPTS = 3
 RETRY_BACKOFF_SECONDS = 2
+
+# How long to stop attempting a login after one fails. A bad credential fails
+# the same way every time; retrying per request only costs a round trip.
+CONNECT_BACKOFF_SECONDS = 300
 
 INTERESTED_THRESHOLD = 70
 NEUTRAL_THRESHOLD = 40
@@ -75,11 +80,22 @@ class SalesforceService:
     The previous version connected in ``__init__`` at module import, which
     meant an expired Salesforce password stopped the entire API from starting
     even though every other feature was unaffected.
+
+    ``client_factory`` and ``clock`` are injected so the connection behaviour
+    can be tested without a Salesforce org.
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        client_factory: Callable[..., Salesforce] = Salesforce,
+        clock: Callable[[], float] = monotonic,
+    ) -> None:
         self._settings = settings
+        self._client_factory = client_factory
+        self._clock = clock
         self._sf: Salesforce | None = None
+        self._retry_after: float | None = None
 
     @property
     def enabled(self) -> bool:
@@ -88,25 +104,39 @@ class SalesforceService:
     def connect(self) -> bool:
         """Open a session. Returns whether a usable connection now exists."""
         if not self.enabled:
-            logger.info("Salesforce not configured; lead sync disabled")
+            logger.debug("Salesforce not configured; lead sync disabled")
             return False
+
         try:
-            self._sf = Salesforce(
+            self._sf = self._client_factory(
                 username=self._settings.SALESFORCE_USERNAME,
                 password=self._settings.SALESFORCE_PASSWORD,
                 security_token=self._settings.SALESFORCE_TOKEN,
                 domain=self._settings.SALESFORCE_DOMAIN,
             )
-            logger.info("Salesforce connected")
-            return True
-        except Exception:
-            logger.exception("Salesforce connection failed")
+        except Exception as error:
+            # A bad password fails identically every time, so retrying on each
+            # request only adds a round trip and buries real errors under
+            # repeated tracebacks. Log the detail once, then stay quiet.
+            first_failure = self._retry_after is None
+            if first_failure:
+                logger.exception("Salesforce connection failed")
+            else:
+                logger.warning("Salesforce still unavailable: %s", error)
+            self._retry_after = self._clock() + CONNECT_BACKOFF_SECONDS
             self._sf = None
             return False
 
+        logger.info("Salesforce connected")
+        self._retry_after = None
+        return True
+
     def _client(self) -> Salesforce | None:
-        if self._sf is None:
-            self.connect()
+        if self._sf is not None:
+            return self._sf
+        if self._retry_after is not None and self._clock() < self._retry_after:
+            return None
+        self.connect()
         return self._sf
 
     def find_lead_id(self, email: str) -> str | None:
@@ -132,6 +162,13 @@ class SalesforceService:
         """Upsert the Lead and attach the call outcome. Returns the Lead id."""
         if not self.enabled:
             logger.info("Salesforce not configured; skipping sync")
+            return None
+
+        if self._client() is None:
+            # Login is backed off after an earlier failure. Retrying here would
+            # spend SYNC_ATTEMPTS sleeps on a connection we already know is
+            # unavailable.
+            logger.warning("Salesforce unavailable; call not synced")
             return None
 
         for attempt in range(1, SYNC_ATTEMPTS + 1):
