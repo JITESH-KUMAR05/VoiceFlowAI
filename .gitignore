@@ -1,3 +1,39 @@
+# Secrets
 .env
-.venv
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
 node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Generated audio from Murf synthesis
+backend/static/audio/*
+!backend/static/audio/.gitkeep
+
+# Local call records. Real transcripts and lead contact details end up here,
+# so this must never be committed.
+backend/database/*
+!backend/database/.gitkeep
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
