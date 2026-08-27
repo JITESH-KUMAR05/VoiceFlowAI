@@ -44,6 +44,18 @@ No network and no credentials: providers are faked at the service boundary, and
 `tests/conftest.py` sets dummy environment values before any app module is
 imported.
 
+**Live integration tests** in `tests_integration/` hit real Azure OpenAI,
+Murf and Salesforce (never a real phone call) and cost a few cents of API
+credit per run. They're excluded from this command by `testpaths` in
+`pyproject.toml` — run them explicitly once your `.env` has real credentials:
+
+```sh
+uv run pytest tests_integration -v
+```
+
+See [`tests_integration/README.md`](tests_integration/README.md) for cost
+and cleanup details.
+
 ## Layout
 
 | Path                  | Responsibility                                        |

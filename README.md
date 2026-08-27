@@ -149,6 +149,23 @@ Both suites run in CI on every push and pull request, alongside a scan that
 fails the build on a tracked `.env`, tracked call records, or a
 credential-shaped string anywhere in the tree.
 
+**Live integration tests**, against real Azure OpenAI, Murf, and Salesforce
+(never a real phone call), live in `backend/tests_integration/` — excluded
+from CI and from a bare `pytest` by `testpaths`. Run them manually once
+credentials are in:
+
+```sh
+cd backend && uv run pytest tests_integration -v
+```
+
+See [`backend/tests_integration/README.md`](backend/tests_integration/README.md)
+for what each one costs and how cleanup works.
+
+**Manual QA**: [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md)
+covers what neither suite can — audio quality, real telephony, both themes
+across every page, and browser failure paths (denied mic, blocked autoplay,
+a backend that goes down mid-call).
+
 ---
 
 ## Design decisions
@@ -181,6 +198,11 @@ Deliberate scope choices, not oversights.
   under concurrent writers. Nothing reads it back.
 - **Salesforce sync is best-effort** — three attempts, then the failure is
   logged and dropped rather than queued.
+- **The post-call pipeline isn't durable.** Scoring, Salesforce sync and the
+  follow-up email run as a FastAPI `BackgroundTask` — in-process, in-memory.
+  If the server is killed between the webhook response and the task
+  finishing, that call's outcome is silently lost; nothing retries it. A
+  durable queue (Celery, RQ, or similar) is the fix.
 - **Browser mode needs Chromium.** It relies on the Web Speech API, which is
   not a standard.
 - **No call recording or barge-in.** The agent finishes its sentence before it

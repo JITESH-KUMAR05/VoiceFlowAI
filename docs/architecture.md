@@ -194,6 +194,18 @@ be constructed explicitly, from every source the object reads.
   convenience and is labelled as one.
 - **Call recording.** Never enabled. Recording someone requires consent that
   this project has no mechanism to collect.
+- **A durable job queue.** `run_post_call_actions` is a FastAPI
+  `BackgroundTask` — it runs in the same process, after the response is
+  sent, with no persistence of its own. If the process dies between the
+  webhook responding and that task completing, the score, the Salesforce
+  write, and the follow-up email for that specific call are gone; nothing
+  retries them on restart, because nothing recorded that the task was ever
+  scheduled. `tests/test_post_call.py` proves each *step* inside the task
+  survives the *others* failing — Salesforce down doesn't stop the email —
+  but none of that helps if the process itself doesn't survive. The honest
+  fix is Celery or RQ backed by Redis, which is the same dependency the
+  session-state limitation above already wants; solving both at once is the
+  natural next step past a demo.
 
 ## Data handling
 
