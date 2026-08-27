@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, User, Mail, Building, MapPin, Banknote, Home, Send } from "lucide-react";
-import { api, type StartCallResponse } from "@/lib/api";
+import { Phone, User, Mail, Building, MapPin, Banknote, Send } from "lucide-react";
+import {
+  api,
+  type StartCallRequest,
+  type StartCallResponse,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { AgentType } from "@/types/agent";
 import { TestMode } from "./TestModeSelector";
@@ -38,7 +41,6 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isPrimary = agentType === "b2b";
   const requiresPhone = testMode === "phone";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,8 +49,8 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
 
     try {
       // 1. Construct Payload
-      const payload = {
-        phone_number: requiresPhone ? formData.phone : null,
+      const payload: StartCallRequest = {
+        phone_number: requiresPhone ? formData.phone : undefined,
         lead_name: formData.name,
         lead_email: formData.email,
         lead_company: formData.company,

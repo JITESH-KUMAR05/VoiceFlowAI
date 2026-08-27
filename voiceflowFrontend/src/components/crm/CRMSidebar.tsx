@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Users, Phone, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentType, agentConfigs } from "@/types/agent";
 
@@ -18,7 +18,6 @@ export function CRMSidebar({ agentType }: CRMSidebarProps) {
   const location = useLocation();
   const config = agentConfigs[agentType];
   const navItems = getCRMNavItems(config.basePath);
-  const isPrimary = agentType === "b2b";
 
   return (
     <aside className="w-64 shrink-0 hidden lg:block">

@@ -56,11 +56,7 @@ export default function AgentTest({ agentType }: AgentTestProps) {
           <div className="panel p-5">
             <h2 className="label-caps mb-3">Mode</h2>
             <div className="mb-6">
-              <TestModeSelector
-                mode={testMode}
-                onChange={setTestMode}
-                agentType={agentType}
-              />
+              <TestModeSelector mode={testMode} onChange={setTestMode} />
             </div>
 
             <TestForm

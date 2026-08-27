@@ -43,13 +43,17 @@ export default function AgentUserDetail({ agentType }: AgentUserDetailProps) {
 
   const lead = leads.find((candidate) => candidate.id === id);
 
-  const analysis = [
-    { label: "Summary", value: lead?.summary },
-    { label: "Pain points", value: lead?.pain_points },
-    { label: "Company type", value: lead?.company_type },
-    { label: "Persona", value: lead?.lifestyle },
-    { label: "Conversion verdict", value: lead?.verdict },
-  ].filter((field) => hasValue(field.value));
+  const candidates: [string, string | null | undefined][] = [
+    ["Summary", lead?.summary],
+    ["Pain points", lead?.pain_points],
+    ["Company type", lead?.company_type],
+    ["Persona", lead?.lifestyle],
+    ["Conversion verdict", lead?.verdict],
+  ];
+
+  const analysis = candidates
+    .filter((entry): entry is [string, string] => hasValue(entry[1]))
+    .map(([label, value]) => ({ label, value }));
 
   return (
     <AgentLayout agentType={agentType}>

@@ -1,17 +1,14 @@
 import { Phone, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentType } from "@/types/agent";
 
 export type TestMode = "phone" | "browser";
 
 interface TestModeSelectorProps {
   mode: TestMode;
   onChange: (mode: TestMode) => void;
-  agentType: AgentType;
 }
 
-export function TestModeSelector({ mode, onChange, agentType }: TestModeSelectorProps) {
-  const isPrimary = agentType === "b2b";
+export function TestModeSelector({ mode, onChange }: TestModeSelectorProps) {
 
   return (
     <div className="flex p-1 rounded-xl bg-muted/50 border border-border">

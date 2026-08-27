@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
 import { Mic, MicOff, Volume2, Loader2, PhoneOff } from "lucide-react"; 
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ interface LiveCallInterfaceProps {
   session: {
     call_sid: string;
     greeting: string;
-    greeting_audio_url: string;
+    greeting_audio_url: string | null;
     lead_name: string;
     language?: string;
   };

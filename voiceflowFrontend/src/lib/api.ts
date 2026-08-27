@@ -80,6 +80,12 @@ export interface StartCallRequest {
   lead_company?: string;
   language?: string;
   voice_id?: string;
+  /**
+   * Anything the enquiry form already captured — budget, location, property
+   * type. The backend folds these into the system prompt so the agent does
+   * not open by asking for what the caller has already given.
+   */
+  details?: Record<string, string | number | boolean>;
 }
 
 export interface StartCallResponse {
