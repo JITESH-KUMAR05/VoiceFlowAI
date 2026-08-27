@@ -106,12 +106,7 @@ export function CallPathDiagram() {
           EVERY TURN
         </text>
 
-        <Node
-          x={xs[0]}
-          y={rowOne}
-          label="Twilio"
-          sub="PSTN + speech"
-        />
+        <Node x={xs[0]} y={rowOne} label="Twilio" sub="PSTN + speech" />
         <Arrow x1={xs[0] + BOX.w} y={rowOne + BOX.h / 2} x2={xs[1] - 4} />
 
         <Node x={xs[1]} y={rowOne} label="FastAPI" sub="session state" accent />

@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, User, Mail, Building, MapPin, Banknote, Send } from "lucide-react";
 import {
-  api,
-  type StartCallRequest,
-  type StartCallResponse,
-} from "@/lib/api";
+  Phone,
+  User,
+  Mail,
+  Building,
+  MapPin,
+  Banknote,
+  Send,
+} from "lucide-react";
+import { api, type StartCallRequest, type StartCallResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AgentType } from "@/types/agent";
 import { TestMode } from "./TestModeSelector";
@@ -18,7 +28,9 @@ import { AIConfig, AIConfigForm } from "./AIConfigForm";
 interface TestFormProps {
   agentType: AgentType;
   testMode: TestMode;
-  onSubmit?: (session: StartCallResponse & { lead_name: string; language: string }) => void;
+  onSubmit?: (
+    session: StartCallResponse & { lead_name: string; language: string },
+  ) => void;
 }
 
 export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
@@ -57,12 +69,15 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
         agent_type: agentType,
         language: aiConfig.language,
         voice_id: aiConfig.voice,
-        details: agentType === "real-estate" ? {
-          budget: formData.budget,
-          location: formData.location,
-          property_type: formData.propertyType,
-          is_rent: formData.isRent,
-        } : {}
+        details:
+          agentType === "real-estate"
+            ? {
+                budget: formData.budget,
+                location: formData.location,
+                property_type: formData.propertyType,
+                is_rent: formData.isRent,
+              }
+            : {},
       };
 
       // 2. Call Backend
@@ -78,9 +93,12 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
           description: "Connecting to AI Agent...",
         });
         // Pass backend data (session_id, audio_url) to parent
-        onSubmit?.({ ...data, lead_name: formData.name, language: aiConfig.language });
+        onSubmit?.({
+          ...data,
+          lead_name: formData.name,
+          language: aiConfig.language,
+        });
       }
-
     } catch (error) {
       console.error(error);
       toast.error("Connection Failed", {
@@ -115,7 +133,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
               type="tel"
               placeholder="+91 9876543210"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               className="pl-10 bg-muted/50 border-border focus:border-primary"
               required={requiresPhone}
             />
@@ -154,7 +174,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
             type="email"
             placeholder="john@company.com"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
             className="pl-10 bg-muted/50 border-border focus:border-primary"
             required
           />
@@ -174,7 +196,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
               type="text"
               placeholder="Acme Inc."
               value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, company: e.target.value })
+              }
               className="pl-10 bg-muted/50 border-border focus:border-primary"
             />
           </div>
@@ -192,7 +216,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
               <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Select
                 value={formData.budget}
-                onValueChange={(value) => setFormData({ ...formData, budget: value })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, budget: value })
+                }
               >
                 <SelectTrigger className="pl-10 bg-muted/50 border-border">
                   <SelectValue placeholder="Select budget range" />
@@ -219,7 +245,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
                 type="text"
                 placeholder="Mumbai, Bangalore, etc."
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
                 className="pl-10 bg-muted/50 border-border focus:border-primary"
                 required
               />
@@ -239,7 +267,9 @@ export function TestForm({ agentType, testMode, onSubmit }: TestFormProps) {
         {isSubmitting ? (
           <>
             <div className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            {testMode === "phone" ? "Initiating Call..." : "Starting Session..."}
+            {testMode === "phone"
+              ? "Initiating Call..."
+              : "Starting Session..."}
           </>
         ) : (
           <>

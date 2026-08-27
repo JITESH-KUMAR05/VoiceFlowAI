@@ -31,7 +31,9 @@ export function summarise(leads: CrmLead[]): LeadStats {
     neutral: scores.filter((score) => score >= 40 && score < 70).length,
     notInterested: scores.filter((score) => score < 40).length,
     averageScore: scores.length
-      ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+      ? Math.round(
+          scores.reduce((sum, score) => sum + score, 0) / scores.length,
+        )
       : null,
     lastContact: timestamps.length ? timestamps[timestamps.length - 1] : null,
   };

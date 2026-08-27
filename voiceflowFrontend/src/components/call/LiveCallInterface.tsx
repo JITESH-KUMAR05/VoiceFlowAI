@@ -119,7 +119,10 @@ export function LiveCallInterface({
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         // "aborted" and "no-speech" are routine, not worth interrupting for.
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        if (
+          event.error === "not-allowed" ||
+          event.error === "service-not-allowed"
+        ) {
           setError(
             "Microphone access was denied. Allow it in your browser to speak to the agent.",
           );
@@ -162,7 +165,10 @@ export function LiveCallInterface({
     setState("processing");
     setError(null);
     setTranscript("");
-    setMessages((prev) => [...prev, { id: nextId(), role: "user", text: spoken }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: nextId(), role: "user", text: spoken },
+    ]);
 
     try {
       const reply = await api.sendMessage(session.call_sid, spoken);
@@ -292,7 +298,9 @@ export function LiveCallInterface({
       <div className="panel flex h-[28rem] flex-col p-4">
         <h2 className="label-caps mb-3">
           Transcript &middot;{" "}
-          <span className="font-mono normal-case">{session.call_sid.slice(0, 8)}</span>
+          <span className="font-mono normal-case">
+            {session.call_sid.slice(0, 8)}
+          </span>
         </h2>
 
         {!supported && (

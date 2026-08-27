@@ -23,12 +23,12 @@ npm run build
 
 ## Layout
 
-| Path              | Contents                                                  |
-| ----------------- | --------------------------------------------------------- |
-| `src/lib/api.ts`  | Every backend call. The only module that reads the API URL |
-| `src/components/ui/` | shadcn primitives — edit only to change design tokens   |
-| `src/components/` | Feature components, grouped by domain                      |
-| `src/pages/`      | Route components, one directory per agent persona          |
-| `src/index.css`   | Design tokens for both themes                              |
+| Path                 | Contents                                                   |
+| -------------------- | ---------------------------------------------------------- |
+| `src/lib/api.ts`     | Every backend call. The only module that reads the API URL |
+| `src/components/ui/` | shadcn primitives — edit only to change design tokens      |
+| `src/components/`    | Feature components, grouped by domain                      |
+| `src/pages/`         | Route components, one directory per agent persona          |
+| `src/index.css`      | Design tokens for both themes                              |
 
 Design constraints for this codebase are in [`../CLAUDE.md`](../CLAUDE.md).

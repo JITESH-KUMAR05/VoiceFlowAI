@@ -1,5 +1,11 @@
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Languages, Mic, Cpu } from "lucide-react";
 
 export interface AIConfig {
@@ -41,7 +47,6 @@ const voicesByLanguage: Record<string, { value: string; label: string }[]> = {
   "pa-IN": [{ value: "pa-IN-harman", label: "Harman" }],
 };
 
-
 const models = [
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
@@ -49,7 +54,8 @@ const models = [
 
 export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
   // Default to English if language not found
-  const availableVoices = voicesByLanguage[config.language] || voicesByLanguage["en-IN"];
+  const availableVoices =
+    voicesByLanguage[config.language] || voicesByLanguage["en-IN"];
 
   const handleLanguageChange = (language: string) => {
     const newVoices = voicesByLanguage[language] || voicesByLanguage["en-IN"];
@@ -94,8 +100,8 @@ export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
             <Mic className="h-3.5 w-3.5" />
             Voice
           </Label>
-          <Select 
-            value={config.voice} 
+          <Select
+            value={config.voice}
             onValueChange={(v) => onChange({ ...config, voice: v })}
           >
             <SelectTrigger className="bg-muted/50 border-border">
@@ -117,8 +123,8 @@ export function AIConfigForm({ config, onChange }: AIConfigFormProps) {
             <Cpu className="h-3.5 w-3.5" />
             Model
           </Label>
-          <Select 
-            value={config.model} 
+          <Select
+            value={config.model}
             onValueChange={(m) => onChange({ ...config, model: m })}
           >
             <SelectTrigger className="bg-muted/50 border-border">

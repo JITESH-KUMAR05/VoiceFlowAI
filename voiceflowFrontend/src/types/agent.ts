@@ -2,11 +2,7 @@ export type AgentType = "b2b" | "real-estate";
 
 export type InterestLevel = "high" | "medium" | "low" | "none";
 export type LeadStatus =
-  | "new"
-  | "contacted"
-  | "qualified"
-  | "converted"
-  | "lost";
+  "new" | "contacted" | "qualified" | "converted" | "lost";
 export type CallOutcome = "completed" | "follow-up" | "missed";
 
 export interface User {

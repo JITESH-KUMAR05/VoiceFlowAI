@@ -13,9 +13,19 @@ interface AgentAnalyticsProps {
 }
 
 const BANDS = [
-  { key: "interested", label: "Interested", range: "70–100", tone: "bg-score-high" },
+  {
+    key: "interested",
+    label: "Interested",
+    range: "70–100",
+    tone: "bg-score-high",
+  },
   { key: "neutral", label: "Neutral", range: "40–69", tone: "bg-score-mid" },
-  { key: "notInterested", label: "Not interested", range: "0–39", tone: "bg-score-low" },
+  {
+    key: "notInterested",
+    label: "Not interested",
+    range: "0–39",
+    tone: "bg-score-low",
+  },
 ] as const;
 
 export default function AgentAnalytics({ agentType }: AgentAnalyticsProps) {
@@ -67,11 +77,14 @@ export default function AgentAnalytics({ agentType }: AgentAnalyticsProps) {
                 label="Last call"
                 value={
                   stats.lastContact
-                    ? new Date(stats.lastContact).toLocaleDateString(undefined, {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
+                    ? new Date(stats.lastContact).toLocaleDateString(
+                        undefined,
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )
                     : null
                 }
               />

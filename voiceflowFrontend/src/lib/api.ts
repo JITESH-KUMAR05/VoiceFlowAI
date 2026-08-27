@@ -149,7 +149,9 @@ export const api = {
     }),
 
   leads: (agentType: string = "all") =>
-    request<CrmLead[]>(`/api/crm/leads?agent_type=${encodeURIComponent(agentType)}`),
+    request<CrmLead[]>(
+      `/api/crm/leads?agent_type=${encodeURIComponent(agentType)}`,
+    ),
 };
 
 /** Turn any thrown value into something worth showing a person. */
