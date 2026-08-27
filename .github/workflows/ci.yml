@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the in-flight run redundant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # The suite fakes every provider at the service boundary, so it needs no
+      # credentials and makes no network calls. If this step ever starts
+      # needing a secret, a test has stopped being a unit test.
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Check the app builds without credentials
+        env:
+          AZURE_OPENAI_API_KEY: ci-placeholder
+          AZURE_OPENAI_ENDPOINT: https://ci.openai.azure.com/
+          AZURE_OPENAI_DEPLOYMENT_NAME: gpt-4o
+          MURF_API_KEY: ci-placeholder
+        run: uv run python -c "from app.main import create_app; create_app()"
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: voiceflowFrontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: voiceflowFrontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # tsc -b, not tsc --noEmit: the root tsconfig sets "files": [] and only
+      # holds project references, so --noEmit typechecks nothing and exits 0.
+      - name: Typecheck
+        run: npx tsc -b --force
+
+      - name: Build
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # This repository previously committed call records containing third
+      # parties' contact details. History was rewritten to remove them; this
+      # step exists so nothing similar lands again unnoticed.
+      - name: Fail on committed secrets or call records
+        run: |
+          set -uo pipefail
+
+          fail=0
+
+          if git ls-files | grep -qE '(^|/)\.env$'; then
+            echo "::error::A .env file is tracked. Secrets must stay out of git."
+            fail=1
+          fi
+
+          if git ls-files | grep -qE 'backend/database/.*\.json$'; then
+            echo "::error::Call records are tracked. They hold transcripts and contact details."
+            fail=1
+          fi
+
+          # An env-file assignment carrying a real-looking value: an uppercase
+          # KEY/TOKEN/PASSWORD/SECRET name at the start of a line, followed by
+          # twelve or more unquoted characters. Python keyword arguments and
+          # the empty names in .env.example do not match this shape.
+          if git ls-files -z \
+            | xargs -0 grep -lnE '^[A-Z][A-Z0-9_]*(KEY|TOKEN|PASSWORD|SECRET)=[^[:space:]"'"'"']{12,}' 2>/dev/null \
+            | grep -v '\.example$'; then
+            echo "::error::A credential assignment with a real-looking value is committed."
+            fail=1
+          fi
+
+          # Provider-specific key formats, wherever they appear.
+          if git ls-files -z \
+            | xargs -0 grep -lE 'ap2_[0-9a-f]{8}-[0-9a-f]{4}-' 2>/dev/null; then
+            echo "::error::A Murf API key is committed."
+            fail=1
+          fi
+
+          exit $fail

@@ -1,5 +1,7 @@
 # VoiceFlow AI
 
+[![CI](https://github.com/JITESH-KUMAR05/VoiceFlowAI/actions/workflows/ci.yml/badge.svg)](https://github.com/JITESH-KUMAR05/VoiceFlowAI/actions/workflows/ci.yml)
+
 An outbound voice agent. It places a real phone call, holds a consultative
 sales conversation, scores the lead against fixed criteria, and writes the
 result to Salesforce with a drafted follow-up email.
@@ -123,7 +125,7 @@ locally only.
 ## Tests
 
 ```sh
-cd backend && uv run pytest          # 35 tests, no network, no credentials
+cd backend && uv run pytest          # 52 tests, no network, no credentials
 ```
 
 Providers are faked at the service boundary. Coverage targets the logic that
