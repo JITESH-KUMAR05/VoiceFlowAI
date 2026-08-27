@@ -42,6 +42,7 @@ async def initiate_call(
         voice_id=payload.voice_id,
         lead_company=payload.lead_company,
         language=payload.language,
+        details=payload.details,
     )
 
     greeting_audio_url = None
