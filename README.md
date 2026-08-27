@@ -125,19 +125,29 @@ locally only.
 ## Tests
 
 ```sh
-cd backend && uv run pytest          # 52 tests, no network, no credentials
+cd backend && uv run pytest          # 79 tests, no network, no credentials
 ```
 
 Providers are faked at the service boundary. Coverage targets the logic that
 belongs to this project rather than to a vendor SDK: persona and prompt
 construction, the scoring contract, session eviction, webhook signature
-rejection, SOQL escaping, and the HTTP contract of every route.
+rejection, SOQL escaping, settings validation, the post-call pipeline's
+failure isolation, and the HTTP contract of every route.
 
-Frontend checks:
+Frontend:
 
 ```sh
-cd voiceflowFrontend && npm run lint && npx tsc -b && npm run build
+cd voiceflowFrontend
+npm run lint             # 0 errors
+npx tsc -b                # 0 type errors, strict mode
+npm run test              # 25 tests — lib/api.ts, lib/status.ts, useLeads.ts
+npm run format:check
+npm run build
 ```
+
+Both suites run in CI on every push and pull request, alongside a scan that
+fails the build on a tracked `.env`, tracked call records, or a
+credential-shaped string anywhere in the tree.
 
 ---
 

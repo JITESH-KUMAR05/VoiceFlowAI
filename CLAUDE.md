@@ -87,6 +87,11 @@ Both themes are hand-tuned. Light is the default. Every token is defined on bare
 `:root` and redefined under the dark selector — never define a color only inside
 a media query or `[data-theme]` block.
 
+`voiceflowFrontend/public/` holds only assets actually referenced: `favicon.ico`
+(hand-generated, matches the accent token) and `robots.txt`. Vite and shadcn
+scaffolds ship a generic favicon and an unused `placeholder.svg` — if either
+reappears after a scaffold regeneration, it is a tell and should be removed.
+
 ## Architecture
 
 ```
@@ -121,12 +126,27 @@ voiceflowFrontend/
 
 ## Testing
 
-`pytest` from `backend/`. Tests must run with no network and no credentials —
-provider clients are faked at the service boundary.
+**Backend:** `pytest` from `backend/`. Tests must run with no network and no
+credentials — provider clients are faked at the service boundary. Because
+`Settings` reads `os.environ` and `.env` in addition to constructor kwargs,
+tests of config validation must isolate both explicitly (see
+`tests/test_config.py`) — omitting a kwarg is not the same as the key being
+absent when the process environment or a local `.env` supplies it underneath.
 
 Cover the logic that is actually yours: persona and prompt selection, the
 scoring contract, session lifecycle and eviction, webhook signature rejection,
-TwiML shape. Do not write tests that assert Twilio's SDK works.
+TwiML shape, settings validation, the post-call pipeline's failure isolation
+(a Salesforce or email failure must not lose the local record). Do not write
+tests that assert Twilio's SDK works.
+
+**Frontend:** `vitest` from `voiceflowFrontend/`, covering pure logic only —
+no component rendering setup exists yet. Test the modules with real behavior
+to assert: `lib/api.ts`'s error normalization, `lib/status.ts`'s score bands,
+aggregation in `hooks/useLeads.ts`. A pure function with no test is an easy
+gap to close; a full component-testing setup is a separate decision.
+
+Both suites run in CI (`.github/workflows/ci.yml`) on every push and PR,
+alongside a secret scan.
 
 ## Commits
 
@@ -149,16 +169,22 @@ Run the checks and read the output. Do not report success from expectation.
 
 ```bash
 cd backend && uv run pytest -q
-cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run build
+cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run test && npm run build
 ```
 
 `tsc -b`, not `tsc --noEmit`. The root `tsconfig.json` sets `"files": []` and
 only holds project references, so a bare `tsc --noEmit` typechecks nothing and
 exits 0 no matter how broken the code is.
 
-Current baseline: 35 backend tests passing, 0 lint errors, 0 type errors. The
-9 remaining lint warnings are `react-refresh/only-export-components` in the
+Current baseline: 79 backend tests passing, 25 frontend tests passing, 0 lint
+errors, 0 type errors, formatting clean (`npm run format:check`). The 7
+remaining lint warnings are `react-refresh/only-export-components` in the
 shadcn primitives, which is inherent to how those files are written.
+
+Frontend tests (`vitest`) cover pure logic only — `lib/api.ts`'s error
+handling, `lib/status.ts`'s score bands, `hooks/useLeads.ts`'s aggregation.
+There is no component-rendering test setup; adding one is a bigger decision
+than a drive-by addition and should be its own conversation.
 
 If something fails, say so and show the failure. A partially working change
 reported as complete is worse than an honest broken one.

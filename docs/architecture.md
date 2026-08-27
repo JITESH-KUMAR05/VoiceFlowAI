@@ -145,12 +145,40 @@ injection.
 **Why.** The original built each service at module import as a global, which
 made the backend untestable in the strict sense — importing `main` opened a
 Salesforce connection. It also meant an expired Salesforce password stopped the
-entire API from starting, even though nothing else depended on it. The 35 tests
-exist because the app can now be constructed with fakes.
+entire API from starting, even though nothing else depended on it. The test
+suite exists because the app can now be constructed with fakes.
 
 **Cost.** More indirection to read through. Following a request means passing
 through the container rather than seeing `openai_service` at the top of the
 file.
+
+## A testing pitfall worth knowing: env vars leak through kwargs
+
+`Settings` is a `pydantic-settings` `BaseSettings`. Constructing it with
+partial kwargs — `Settings(AZURE_OPENAI_API_KEY="x")` — does not mean every
+other field is unset. `BaseSettings` reads process environment variables and
+a `.env` file as additional sources, in that priority order below explicit
+kwargs. So a test that omits a key to prove "missing required key fails fast"
+can pass for the wrong reason: the key was never actually missing, it was
+supplied underneath by whatever the process environment happened to hold.
+
+This project hit it directly. `tests/conftest.py` sets dummy values for every
+provider credential on `os.environ` before any app module imports, so the rest
+of the suite can run without a real `.env`. The first version of
+`tests/test_config.py` asserted that omitting `AZURE_OPENAI_API_KEY` from the
+constructor call raised a validation error. It did not raise — conftest's
+dummy value filled the gap silently, and the test passed by construction
+regardless of whether the underlying fail-fast behaviour actually worked.
+
+The fix is two-part: pass `_env_file=None` to the constructor to stop it
+reading any real `backend/.env` on disk, and use `monkeypatch.delenv` to
+remove the specific keys from `os.environ` for the duration of that test.
+Neither alone is sufficient — a local `.env` can supply values `delenv` never
+touches, and conftest's `os.environ` values survive `_env_file=None`.
+
+The general lesson: a settings or config object backed by environment lookup
+cannot be tested for "absence" by simply not passing a value. Absence has to
+be constructed explicitly, from every source the object reads.
 
 ## What is deliberately absent
 
