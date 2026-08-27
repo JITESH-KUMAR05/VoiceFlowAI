@@ -1,14 +1,23 @@
-import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Volume2, Loader2, PhoneOff } from "lucide-react"; 
-import { api } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Mic, MicOff, PhoneOff, Volume2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { api, describeError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface Message {
   id: string;
-  role: "user" | "ai";
+  role: "user" | "agent";
   text: string;
 }
+
+/** Where the turn loop currently is. */
+type CallState =
+  | "connecting"
+  | "speaking" // the agent is talking
+  | "listening" // waiting on the caller
+  | "processing" // model and synthesis in flight
+  | "ended";
 
 interface LiveCallInterfaceProps {
   session: {
@@ -18,234 +27,320 @@ interface LiveCallInterfaceProps {
     lead_name: string;
     language?: string;
   };
+  /** Called once the post-call pipeline has been handed off. */
+  onEnded?: () => void;
 }
 
-export function LiveCallInterface({ session }: LiveCallInterfaceProps) {
-  const [status, setStatus] = useState<"idle" | "speaking" | "listening" | "processing">("idle");
-  const [messages, setMessages] = useState<Message[]>([]);
+const STATE_LABEL: Record<CallState, string> = {
+  connecting: "Connecting",
+  speaking: "Agent speaking",
+  listening: "Listening",
+  processing: "Thinking",
+  ended: "Call ended",
+};
+
+function speechRecognitionSupported(): boolean {
+  return Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
+}
+
+let messageCounter = 0;
+const nextId = () => `m${++messageCounter}`;
+
+export function LiveCallInterface({
+  session,
+  onEnded,
+}: LiveCallInterfaceProps) {
+  const [state, setState] = useState<CallState>("connecting");
+  const [messages, setMessages] = useState<Message[]>([
+    { id: nextId(), role: "agent", text: session.greeting },
+  ]);
   const [transcript, setTranscript] = useState("");
-  
+  const [error, setError] = useState<string | null>(null);
+  const [supported] = useState(speechRecognitionSupported);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  // Read inside audio callbacks, which are registered once and would
+  // otherwise close over a stale value.
+  const stateRef = useRef<CallState>("connecting");
+  stateRef.current = state;
 
-  // 1. Initialize & Play Greeting
+  const startListening = useCallback(() => {
+    if (!recognitionRef.current || stateRef.current === "ended") return;
+    setTranscript("");
+    try {
+      recognitionRef.current.start();
+      setState("listening");
+    } catch {
+      // start() throws if recognition is already running, which is harmless.
+    }
+  }, []);
+
+  const playAudio = useCallback(
+    (url: string) => {
+      audioRef.current?.pause();
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setState("speaking");
+
+      audio.onended = () => {
+        if (stateRef.current !== "ended") startListening();
+      };
+      audio.onerror = () => {
+        setError("The agent's audio could not be played. You can still type.");
+        if (stateRef.current !== "ended") startListening();
+      };
+
+      audio.play().catch(() => {
+        // Browsers block autoplay until the page has been interacted with.
+        setError("Playback was blocked. Press the microphone to continue.");
+        setState("listening");
+      });
+    },
+    [startListening],
+  );
+
+  // Set up recognition and play the greeting. Runs once per session.
   useEffect(() => {
-    // Add greeting to chat
-    setMessages([{ id: "init", role: "ai", text: session.greeting }]);
-    
-    // Play Greeting Audio
-    if (session.greeting_audio_url) {
-      playAudio(session.greeting_audio_url);
+    const Recognition =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (Recognition) {
+      const recognition = new Recognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = session.language ?? "en-IN";
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        setTranscript(event.results[event.resultIndex][0].transcript);
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        // "aborted" and "no-speech" are routine, not worth interrupting for.
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setError(
+            "Microphone access was denied. Allow it in your browser to speak to the agent.",
+          );
+        } else if (event.error !== "aborted" && event.error !== "no-speech") {
+          setError(`Speech recognition failed: ${event.error}`);
+        }
+      };
+
+      recognitionRef.current = recognition;
     }
 
-    // Setup Speech Recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition =
-            window.SpeechRecognition ?? window.webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = session.language || 'en-IN'; 
-
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-            const current = event.resultIndex;
-            const transcriptText = event.results[current][0].transcript;
-            setTranscript(transcriptText);
-        };
-
-        recognitionRef.current.onend = () => {
-            // If we have text, send it. If not, just go idle.
-            // We handle the "send" logic in a separate effect or check transcript here
-        };
+    if (session.greeting_audio_url) {
+      playAudio(session.greeting_audio_url);
+    } else {
+      setState("listening");
     }
 
     return () => {
-      if (audioRef.current) audioRef.current.pause();
-      if (recognitionRef.current) recognitionRef.current.stop();
+      audioRef.current?.pause();
+      recognitionRef.current?.abort();
     };
-  }, []);
+    // Intentionally session-scoped: re-running would replay the greeting.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.call_sid]);
 
-  // 2. Handle Transcript Finalization
   useEffect(() => {
-    if (status === "listening" && transcript) {
-        // Simple debounce or wait for silence could go here
-        // For now, we rely on the user clicking "Stop" or the engine stopping
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    const spoken = transcript.trim();
+    if (!spoken) {
+      // Nothing was captured; drop back rather than leaving the mic "on".
+      recognitionRef.current?.stop();
+      setState("listening");
+      return;
     }
-  }, [transcript]);
 
-  // Helper: Play Audio
-  const playAudio = (url: string) => {
-    setStatus("speaking");
-    if (audioRef.current) audioRef.current.pause();
-    
-    audioRef.current = new Audio(url);
-    audioRef.current.onended = () => {
-      setStatus("listening");
-      startListening();
-    };
-    audioRef.current.play().catch(e => console.error("Audio play error:", e));
-  };
-
-  // Helper: Start Listening
-  const startListening = () => {
-    setTranscript("");
-    try {
-        recognitionRef.current?.start();
-        setStatus("listening");
-    } catch (e) {
-        console.log("Already started or error", e);
-    }
-  };
-
-  // Helper: Stop Listening & Send
-  const handleStopListening = async () => {
-    if (!transcript) return;
-    
     recognitionRef.current?.stop();
-    setStatus("processing");
-    
-    // Add User Message
-    const userMsg: Message = { id: Date.now().toString(), role: "user", text: transcript };
-    setMessages(prev => [...prev, userMsg]);
+    setState("processing");
+    setError(null);
+    setTranscript("");
+    setMessages((prev) => [...prev, { id: nextId(), role: "user", text: spoken }]);
 
     try {
-        const data = await api.sendMessage(session.call_sid, transcript);
-        
-        // Add AI Message
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: "ai", text: data.text }]);
-        
-        // Play Response
-        if (data.audio_url) {
-            playAudio(data.audio_url);
-        } else {
-            setStatus("idle");
-        }
+      const reply = await api.sendMessage(session.call_sid, spoken);
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId(), role: "agent", text: reply.text },
+      ]);
 
-    } catch (error) {
-        console.error("Chat error", error);
-        setStatus("idle");
+      if (reply.audio_url) {
+        playAudio(reply.audio_url);
+      } else {
+        startListening();
+      }
+    } catch (cause) {
+      setError(describeError(cause));
+      setState("listening");
     }
   };
 
-  // [NEW] Handle End Call
-  const handleEndCall = async () => {
-    if (audioRef.current) audioRef.current.pause();
-    if (recognitionRef.current) recognitionRef.current.stop();
-    setStatus("idle");
+  const endCall = async () => {
+    audioRef.current?.pause();
+    recognitionRef.current?.abort();
+    setState("ended");
+    setError(null);
 
     try {
-        await api.endCall(session.call_sid);
-        alert("Call Ended. Check Salesforce & Email for updates!");
-        window.location.reload(); // Reset for next demo
-    } catch (error) {
-        console.error("Error ending call:", error);
+      await api.endCall(session.call_sid);
+    } catch (cause) {
+      // The conversation is over either way; say what did not happen.
+      setError(
+        `The call ended, but the follow-up could not be started: ${describeError(cause)}`,
+      );
     }
+    onEnded?.();
   };
+
+  const isLive = state !== "ended";
 
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 h-[600px]">
-      
-      {/* Left: Visualizer & Controls */}
-      <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center justify-center relative overflow-hidden">
-        
-        {/* Status Indicator */}
-        <div className="absolute top-6 left-6 flex items-center gap-2">
-            <div className={cn("w-3 h-3 rounded-full", 
-                status === "speaking" ? "bg-green-500 animate-pulse" : 
-                status === "listening" ? "bg-red-500 animate-pulse" : "bg-gray-500"
-            )} />
-            <span className="text-sm font-medium capitalize text-muted-foreground">{status}</span>
+    <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      {/* Controls */}
+      <div className="panel flex flex-col items-center p-6">
+        <div className="mb-6 flex w-full items-center gap-2">
+          <span
+            className={cn(
+              "status-dot",
+              state === "listening" && "bg-live animate-on-air",
+              state === "speaking" && "bg-primary",
+              state === "processing" && "bg-muted-foreground",
+              state === "connecting" && "bg-muted-foreground",
+              state === "ended" && "bg-border",
+            )}
+          />
+          <span className="label-caps" aria-live="polite">
+            {STATE_LABEL[state]}
+          </span>
         </div>
 
-        {/* Avatar / Visualizer */}
-        <div className="relative mb-8">
-            <div className={cn("w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500",
-                status === "speaking" ? "bg-primary/20 scale-110" : "bg-muted"
-            )}>
-                <Volume2 className={cn("w-12 h-12", status === "speaking" ? "text-primary" : "text-muted-foreground")} />
-            </div>
-            {/* Ripple effects */}
-            {status === "speaking" && (
-                <>
-                    <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping" />
-                    <div className="absolute -inset-4 rounded-full border border-primary/10 animate-pulse" />
-                </>
-            )}
+        <div
+          className={cn(
+            "mb-6 flex h-24 w-24 items-center justify-center rounded-full border transition-colors",
+            state === "speaking"
+              ? "border-primary/40 bg-primary/10"
+              : "border-border bg-muted",
+          )}
+        >
+          {state === "processing" ? (
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          ) : (
+            <Volume2
+              className={cn(
+                "h-8 w-8",
+                state === "speaking" ? "text-primary" : "text-muted-foreground",
+              )}
+            />
+          )}
         </div>
 
-        {/* Transcript Display (Live) */}
-        <div className="h-16 text-center mb-8 w-full px-4">
-            {status === "listening" && (
-                <p className="text-lg text-foreground font-medium animate-pulse">
-                    {transcript || "Listening..."}
-                </p>
-            )}
-            {status === "processing" && (
-                <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Processing response...
-                </div>
-            )}
+        <div className="mb-6 flex min-h-12 w-full items-center justify-center px-2 text-center">
+          {state === "listening" && (
+            <p className="text-sm" aria-live="polite">
+              {transcript || (
+                <span className="text-muted-foreground">Say something…</span>
+              )}
+            </p>
+          )}
         </div>
 
-        {/* Controls */}
-        <div className="flex gap-4 items-center">
-            {/* Mic Controls */}
-            {status === "listening" ? (
-                <Button 
-                    size="lg" 
-                    variant="destructive" 
-                    className="rounded-full h-16 w-16"
-                    onClick={handleStopListening}
-                >
-                    <MicOff className="w-6 h-6" />
-                </Button>
-            ) : (
-                <Button 
-                    size="lg" 
-                    variant="secondary" 
-                    className="rounded-full h-16 w-16"
-                    onClick={startListening}
-                    disabled={status === "processing" || status === "speaking"}
-                >
-                    <Mic className="w-6 h-6" />
-                </Button>
-            )}
-
-            {/* [NEW] End Call Button */}
-            <Button 
-                size="lg" 
-                variant="outline" 
-                className="rounded-full h-16 w-16 border-red-500 text-red-500 hover:bg-red-50"
-                onClick={handleEndCall}
-            >
-                <PhoneOff className="w-6 h-6" />
+        <div className="flex items-center gap-3">
+          {state === "listening" ? (
+            <Button size="icon" onClick={send} aria-label="Send what you said">
+              <MicOff />
             </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={startListening}
+              disabled={!isLive || !supported || state !== "speaking"}
+              aria-label="Speak"
+            >
+              <Mic />
+            </Button>
+          )}
+
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={endCall}
+            disabled={!isLive}
+            aria-label="End the call"
+          >
+            <PhoneOff />
+          </Button>
         </div>
-        
-        <p className="mt-4 text-xs text-muted-foreground">
-            {status === "listening" ? "Tap to send" : "Tap to speak"}
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          {state === "listening"
+            ? "Press to send what you said"
+            : state === "ended"
+              ? "Scoring and CRM sync are running in the background"
+              : "Wait for the agent to finish"}
         </p>
       </div>
 
-      {/* Right: Chat History */}
-      <div className="bg-muted/30 border border-border rounded-2xl p-4 flex flex-col">
-        <div className="flex-1 overflow-y-auto space-y-4 p-2">
-            {messages.map((msg) => (
-                <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
-                    <div className={cn(
-                        "max-w-[80%] p-3 rounded-2xl text-sm",
-                        msg.role === "user" 
-                            ? "bg-primary text-primary-foreground rounded-tr-none" 
-                            : "bg-card border border-border rounded-tl-none"
-                    )}>
-                        {msg.text}
-                    </div>
-                </div>
-            ))}
+      {/* Transcript */}
+      <div className="panel flex h-[28rem] flex-col p-4">
+        <h2 className="label-caps mb-3">
+          Transcript &middot;{" "}
+          <span className="font-mono normal-case">{session.call_sid.slice(0, 8)}</span>
+        </h2>
+
+        {!supported && (
+          <p
+            className="mb-3 rounded-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
+            role="status"
+          >
+            This browser has no speech recognition. Browser calls need a
+            Chromium-based browser.
+          </p>
+        )}
+
+        {error && (
+          <p
+            className="mb-3 rounded-sm border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "flex",
+                message.role === "user" ? "justify-end" : "justify-start",
+              )}
+            >
+              <div
+                className={cn(
+                  "max-w-[80%] rounded-md px-3 py-2 text-sm",
+                  message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-muted",
+                )}
+              >
+                <span className="label-caps mb-0.5 block opacity-70">
+                  {message.role === "user" ? session.lead_name : "Agent"}
+                </span>
+                {message.text}
+              </div>
+            </div>
+          ))}
+          <div ref={transcriptEndRef} />
         </div>
       </div>
-
     </div>
   );
 }

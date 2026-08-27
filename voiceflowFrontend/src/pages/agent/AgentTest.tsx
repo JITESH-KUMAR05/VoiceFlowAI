@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { toast } from "sonner";
+
 import { LiveCallInterface } from "@/components/call/LiveCallInterface";
 import { AgentLayout } from "@/components/layout/AgentLayout";
 import { TestForm } from "@/components/test/TestForm";
@@ -34,7 +36,15 @@ export default function AgentTest({ agentType }: AgentTestProps) {
           >
             &larr; End session
           </Button>
-          <LiveCallInterface session={session} />
+          <LiveCallInterface
+            session={session}
+            onEnded={() =>
+              toast("Call ended", {
+                description:
+                  "Scoring, Salesforce sync and the follow-up email are running in the background.",
+              })
+            }
+          />
         </div>
       </AgentLayout>
     );
