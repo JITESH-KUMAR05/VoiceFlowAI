@@ -98,14 +98,26 @@ class Settings(BaseSettings):
 
     @property
     def salesforce_configured(self) -> bool:
-        return bool(self.SALESFORCE_USERNAME and self.SALESFORCE_PASSWORD)
+        # Client Credentials Flow needs no username or password at all, so
+        # either half being set is sufficient - checking only username and
+        # password would wrongly report "unconfigured" for an org set up
+        # purely with a Connected App.
+        return bool(
+            (self.SALESFORCE_USERNAME and self.SALESFORCE_PASSWORD)
+            or self.salesforce_oauth_configured
+        )
 
     @property
     def salesforce_oauth_configured(self) -> bool:
-        """Whether to authenticate via OAuth instead of the SOAP+token login.
+        """Whether to authenticate via OAuth Client Credentials Flow instead
+        of the legacy SOAP+token login.
 
-        Requires both halves of the Connected App credential - one without
-        the other can't complete the grant_type=password exchange.
+        Requires both halves of the Connected App / External Client App
+        credential - one without the other can't complete the
+        grant_type=client_credentials exchange. Also requires
+        SALESFORCE_DOMAIN to be a real Salesforce My Domain rather than the
+        "login"/"test" aliases; simple_salesforce only takes the
+        client_credentials path for a real domain.
         """
         return bool(self.SALESFORCE_CONSUMER_KEY and self.SALESFORCE_CONSUMER_SECRET)
 

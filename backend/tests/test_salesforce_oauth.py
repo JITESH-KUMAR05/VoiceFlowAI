@@ -1,17 +1,22 @@
-"""Connect via OAuth (Consumer Key/Secret) when configured, SOAP otherwise.
+"""Connect via OAuth Client Credentials when configured, SOAP otherwise.
 
 Newer Salesforce orgs (trial "orgfarm" orgs in particular) disable SOAP API
-login by default - the exact login path SalesforceService always used. The
-fix is a Connected App / External Client App with OAuth, but
-simple_salesforce.SalesforceLogin has a specific and easy-to-miss quirk: it
-checks `if security_token is not None` FIRST, before it ever looks at
-consumer_key/consumer_secret. Pass security_token at all - even alongside
-valid OAuth credentials - and it takes the SOAP path regardless. The OAuth
-branch is only reached when security_token is omitted entirely, not just
-empty.
+login by default. The natural next choice, OAuth's Username-Password flow,
+turned out to be disabled too - and on a fresh org that toggle is locked,
+not just off, because password-based flows are actively discouraged now
+(the same org would also just reject a password-flow login with
+"Username-Password Flow Disabled" in Login History, independent of anything
+this project's code does).
 
-So connect() has to build two genuinely different keyword-argument sets, not
-just add two optional ones to the existing call.
+Client Credentials Flow sidesteps the whole category: it authenticates as
+the Connected App / External Client App's configured "Run As" user using
+only the consumer key and secret, no username or password at all, so
+whatever blocks password-based login can't touch it.
+
+simple_salesforce only takes the client_credentials path when a real
+Salesforce My Domain is supplied - not the generic "login"/"test" aliases -
+so SALESFORCE_DOMAIN has to be a real My Domain in this mode, which the
+older SOAP/password modes never required.
 """
 
 from __future__ import annotations
@@ -39,44 +44,44 @@ class RecordingClient:
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self.session_id = "fake-session"
 
 
-def test_oauth_credentials_alone_are_not_enough_without_username_password():
+def test_client_credentials_alone_count_as_configured_with_no_username():
     settings = build_settings(
         SALESFORCE_USERNAME="",
         SALESFORCE_PASSWORD="",
         SALESFORCE_CONSUMER_KEY="ck",
         SALESFORCE_CONSUMER_SECRET="cs",
     )
-    assert settings.salesforce_configured is False
+    # Client Credentials Flow needs no username or password at all - a
+    # username-only check for "is Salesforce configured" would wrongly say
+    # no here.
+    assert settings.salesforce_configured is True
 
 
 def test_oauth_mode_is_detected_only_when_both_key_and_secret_are_present():
-    settings = build_settings(
-        SALESFORCE_USERNAME="u",
-        SALESFORCE_PASSWORD="p",
-        SALESFORCE_CONSUMER_KEY="ck",
-        SALESFORCE_CONSUMER_SECRET="",
-    )
+    settings = build_settings(SALESFORCE_CONSUMER_KEY="ck", SALESFORCE_CONSUMER_SECRET="")
     assert settings.salesforce_oauth_configured is False
 
-    settings = build_settings(
-        SALESFORCE_USERNAME="u",
-        SALESFORCE_PASSWORD="p",
-        SALESFORCE_CONSUMER_KEY="ck",
-        SALESFORCE_CONSUMER_SECRET="cs",
-    )
+    settings = build_settings(SALESFORCE_CONSUMER_KEY="ck", SALESFORCE_CONSUMER_SECRET="cs")
     assert settings.salesforce_oauth_configured is True
 
 
-def test_connect_uses_oauth_kwargs_and_omits_security_token_entirely():
+def test_legacy_username_password_alone_still_counts_as_configured():
+    settings = build_settings(SALESFORCE_USERNAME="u", SALESFORCE_PASSWORD="p")
+    assert settings.salesforce_configured is True
+    assert settings.salesforce_oauth_configured is False
+
+
+def test_connect_uses_only_consumer_key_and_secret_in_oauth_mode():
     settings = build_settings(
         SALESFORCE_USERNAME="u",
         SALESFORCE_PASSWORD="p",
         SALESFORCE_TOKEN="should-not-be-sent",
         SALESFORCE_CONSUMER_KEY="ck",
         SALESFORCE_CONSUMER_SECRET="cs",
-        SALESFORCE_DOMAIN="login",
+        SALESFORCE_DOMAIN="orgfarm-example-dev-ed.develop.my",
     )
     service = SalesforceService(settings, client_factory=RecordingClient, clock=monotonic)
 
@@ -84,8 +89,11 @@ def test_connect_uses_oauth_kwargs_and_omits_security_token_entirely():
     kwargs = service._sf.kwargs  # noqa: SLF001 - inspecting the fake directly
     assert kwargs["consumer_key"] == "ck"
     assert kwargs["consumer_secret"] == "cs"
-    assert kwargs["username"] == "u"
-    assert kwargs["password"] == "p"
+    assert kwargs["domain"] == "orgfarm-example-dev-ed.develop.my"
+    # Client Credentials Flow takes no username, password or token - a
+    # user's credentials play no part in this login at all.
+    assert "username" not in kwargs
+    assert "password" not in kwargs
     assert "security_token" not in kwargs
 
 
@@ -99,6 +107,8 @@ def test_connect_falls_back_to_security_token_when_oauth_is_not_configured():
 
     assert service.connect() is True
     kwargs = service._sf.kwargs  # noqa: SLF001
+    assert kwargs["username"] == "u"
+    assert kwargs["password"] == "p"
     assert kwargs["security_token"] == "tok"
     assert "consumer_key" not in kwargs
     assert "consumer_secret" not in kwargs

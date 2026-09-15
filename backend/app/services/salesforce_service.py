@@ -105,25 +105,26 @@ class SalesforceService:
         """Build the login call's keyword arguments for whichever mode is
         configured.
 
-        simple_salesforce.SalesforceLogin checks ``security_token is not
-        None`` before it ever looks at consumer_key/consumer_secret - pass a
-        token alongside valid OAuth credentials and it still takes the SOAP
-        path. So security_token has to be omitted entirely in OAuth mode, not
-        just left empty; these are two genuinely different kwarg sets, not
-        one set with two optional extras.
+        OAuth Client Credentials Flow authenticates as the Connected App's
+        configured "Run As" user using only the consumer key and secret - no
+        username, password or token at all, which is exactly why it's used
+        here rather than OAuth's Username-Password flow: newer orgs
+        increasingly disable password-based login outright (both the legacy
+        SOAP login and the OAuth password grant), a restriction that simply
+        does not apply to a flow with no password in it.
         """
-        base = {
-            "username": self._settings.SALESFORCE_USERNAME,
-            "password": self._settings.SALESFORCE_PASSWORD,
-            "domain": self._settings.SALESFORCE_DOMAIN,
-        }
         if self._settings.salesforce_oauth_configured:
             return {
-                **base,
                 "consumer_key": self._settings.SALESFORCE_CONSUMER_KEY,
                 "consumer_secret": self._settings.SALESFORCE_CONSUMER_SECRET,
+                "domain": self._settings.SALESFORCE_DOMAIN,
             }
-        return {**base, "security_token": self._settings.SALESFORCE_TOKEN}
+        return {
+            "username": self._settings.SALESFORCE_USERNAME,
+            "password": self._settings.SALESFORCE_PASSWORD,
+            "security_token": self._settings.SALESFORCE_TOKEN,
+            "domain": self._settings.SALESFORCE_DOMAIN,
+        }
 
     def connect(self) -> bool:
         """Open a session. Returns whether a usable connection now exists."""

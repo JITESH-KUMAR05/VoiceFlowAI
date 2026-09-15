@@ -90,12 +90,22 @@ def test_sync_returns_none_rather_than_raising_when_login_fails(settings):
 
 
 def test_a_disabled_integration_never_attempts_a_connection():
+    # _env_file=None plus explicitly blanking every Salesforce credential:
+    # a real backend/.env (or SalesforceService's own OAuth env vars set for
+    # other tests in this session) would otherwise leak in and make this
+    # settings object look configured regardless of what's passed here -
+    # the same "presence, not truthiness" pitfall test_config.py's
+    # isolated_env fixture exists to avoid.
     settings = Settings(
+        _env_file=None,
         AZURE_OPENAI_API_KEY="k",
         AZURE_OPENAI_ENDPOINT="https://test.openai.azure.com/",
         AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o",
         MURF_API_KEY="m",
         SALESFORCE_USERNAME="",
+        SALESFORCE_PASSWORD="",
+        SALESFORCE_CONSUMER_KEY="",
+        SALESFORCE_CONSUMER_SECRET="",
     )
     attempts: list = []
     service = SalesforceService(settings, client_factory=failing_client(attempts))

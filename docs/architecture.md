@@ -103,31 +103,44 @@ is no outcome data. The bands (70 / 40) match
 `salesforce_service.sentiment_for_score` and the frontend's `scoreColor`, and
 those three have to be changed together.
 
-## Decision: two login modes for Salesforce, not one with extra options
+## Decision: OAuth Client Credentials Flow, not OAuth's password grant
 
 **What.** `SalesforceService._login_kwargs` builds two entirely different
-keyword-argument sets for `simple_salesforce.Salesforce(...)` depending on
+keyword-argument sets for `simple_salesforce.Salesforce(...)`, chosen by
 whether `SALESFORCE_CONSUMER_KEY`/`SALESFORCE_CONSUMER_SECRET` are set:
-OAuth (username, password, consumer key, consumer secret) or legacy SOAP
-(username, password, security token).
+OAuth Client Credentials Flow (consumer key and secret only — no username,
+password, or token) or the legacy SOAP login (username, password, security
+token).
 
-**Why.** Newer Salesforce orgs — trial "orgfarm" orgs in particular —
-disable SOAP API login by default, which is the only mode the project
-originally supported. The fix is authenticating through a Connected App /
-External Client App's OAuth credentials instead. The two modes can't just be
-merged into one call with optional extra kwargs: `simple_salesforce`'s login
-function checks whether `security_token` was passed *at all*, before it ever
-looks at the OAuth arguments, and takes the SOAP path regardless of whether
-valid OAuth credentials are also present. Passing `security_token=""` isn't
-good enough either — it has to be omitted from the call entirely. That's
-exactly the shape of bug the project's own config-testing lesson describes:
-a library behaving on *presence*, not truthiness, of an argument.
+**Why not just add OAuth's username-password grant instead.** That was the
+first attempt, and it's worth recording why it didn't survive contact with
+a real org. Newer Salesforce orgs — trial "orgfarm" orgs in particular —
+disable SOAP API login by default, which was the only mode this project
+originally supported. OAuth's password grant (username, password, consumer
+key, consumer secret) looked like the fix, but the same org rejected it
+too, with Login History reporting `Username-Password Flow Disabled` — a
+policy toggle that exists in Setup but is locked, not merely off, on an org
+like this. Any password-based login, SOAP or OAuth, hits the same wall.
 
-**Cost.** Two authentication paths to maintain and to have tested — both are
-covered (`tests/test_salesforce_oauth.py`), but it's more surface than a
-single login call would be, and a production deployment now has to know
-which mode its org supports rather than there being one obvious way to
-configure it.
+Client Credentials Flow sidesteps the category entirely: it authenticates
+as the Connected App / External Client App's configured "Run As" user using
+only the consumer key and secret. There is no password in the exchange, so
+a restriction on password-based login has nothing to apply to.
+
+Getting even this far surfaced the same class of bug the project's own
+config-testing lesson already describes: `simple_salesforce`'s login
+function checks whether `security_token` was passed *at all* before it
+ever looks at OAuth arguments, and the client-credentials branch is only
+reached when `domain` is a real Salesforce My Domain, not the generic
+`login`/`test` aliases the SOAP path uses. Passing an empty string for
+either isn't good enough — they have to be omitted or replaced entirely,
+not just left falsy.
+
+**Cost.** Two authentication paths to maintain and to have tested — both
+are covered (`tests/test_salesforce_oauth.py`) — and Client Credentials
+Flow needs its own one-time Setup work (enabling the flow on the app,
+assigning a Run As user, and pointing `SALESFORCE_DOMAIN` at the org's real
+My Domain instead of `login`) that the simpler SOAP+token setup never did.
 
 ## Decision: verify Twilio's signature
 

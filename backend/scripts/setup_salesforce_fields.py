@@ -120,21 +120,20 @@ def main() -> int:
         print("SALESFORCE_USERNAME / SALESFORCE_PASSWORD not set in .env.")
         return 1
 
-    # Two genuinely different login modes, not one call with two optional
-    # extras: simple_salesforce.SalesforceLogin takes the legacy SOAP path
-    # whenever security_token is passed at all, even alongside valid OAuth
-    # credentials, so the token has to be omitted entirely in OAuth mode.
+    # Two genuinely different login modes: OAuth Client Credentials Flow
+    # (consumer key + secret only, authenticating as the app's configured
+    # "Run As" user) or the legacy SOAP username+password+token login.
     # See SalesforceService._login_kwargs for the same logic in the app
-    # itself.
+    # itself, and why Client Credentials rather than OAuth's password grant:
+    # newer orgs increasingly disable password-based login outright, a
+    # restriction that doesn't apply to a flow with no password in it.
     if settings.salesforce_oauth_configured:
         sf = Salesforce(
-            username=settings.SALESFORCE_USERNAME,
-            password=settings.SALESFORCE_PASSWORD,
             consumer_key=settings.SALESFORCE_CONSUMER_KEY,
             consumer_secret=settings.SALESFORCE_CONSUMER_SECRET,
             domain=settings.SALESFORCE_DOMAIN,
         )
-        print(f"Connected via OAuth as {settings.SALESFORCE_USERNAME}")
+        print("Connected via OAuth Client Credentials Flow")
     else:
         sf = Salesforce(
             username=settings.SALESFORCE_USERNAME,
