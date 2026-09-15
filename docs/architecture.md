@@ -103,6 +103,32 @@ is no outcome data. The bands (70 / 40) match
 `salesforce_service.sentiment_for_score` and the frontend's `scoreColor`, and
 those three have to be changed together.
 
+## Decision: two login modes for Salesforce, not one with extra options
+
+**What.** `SalesforceService._login_kwargs` builds two entirely different
+keyword-argument sets for `simple_salesforce.Salesforce(...)` depending on
+whether `SALESFORCE_CONSUMER_KEY`/`SALESFORCE_CONSUMER_SECRET` are set:
+OAuth (username, password, consumer key, consumer secret) or legacy SOAP
+(username, password, security token).
+
+**Why.** Newer Salesforce orgs — trial "orgfarm" orgs in particular —
+disable SOAP API login by default, which is the only mode the project
+originally supported. The fix is authenticating through a Connected App /
+External Client App's OAuth credentials instead. The two modes can't just be
+merged into one call with optional extra kwargs: `simple_salesforce`'s login
+function checks whether `security_token` was passed *at all*, before it ever
+looks at the OAuth arguments, and takes the SOAP path regardless of whether
+valid OAuth credentials are also present. Passing `security_token=""` isn't
+good enough either — it has to be omitted from the call entirely. That's
+exactly the shape of bug the project's own config-testing lesson describes:
+a library behaving on *presence*, not truthiness, of an argument.
+
+**Cost.** Two authentication paths to maintain and to have tested — both are
+covered (`tests/test_salesforce_oauth.py`), but it's more surface than a
+single login call would be, and a production deployment now has to know
+which mode its org supports rather than there being one obvious way to
+configure it.
+
 ## Decision: verify Twilio's signature
 
 **What.** `verify_twilio_signature` is a dependency on all three telephony

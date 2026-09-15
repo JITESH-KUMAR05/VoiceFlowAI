@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     SALESFORCE_PASSWORD: str = ""
     SALESFORCE_TOKEN: str = ""
     SALESFORCE_DOMAIN: str = "login"
+    # Optional: a Connected App / External Client App's OAuth credentials.
+    # Newer orgs (trial "orgfarm" orgs especially) disable the legacy SOAP
+    # login SALESFORCE_TOKEN relies on, so this is the fallback path when
+    # both are present. See salesforce_oauth_configured and
+    # SalesforceService.connect for why this can't just be two more kwargs
+    # bolted onto the existing login call.
+    SALESFORCE_CONSUMER_KEY: str = ""
+    SALESFORCE_CONSUMER_SECRET: str = ""
 
     # --- SMTP: optional. Absent means no follow-up email is sent. ---
     SMTP_SERVER: str = ""
@@ -91,6 +99,15 @@ class Settings(BaseSettings):
     @property
     def salesforce_configured(self) -> bool:
         return bool(self.SALESFORCE_USERNAME and self.SALESFORCE_PASSWORD)
+
+    @property
+    def salesforce_oauth_configured(self) -> bool:
+        """Whether to authenticate via OAuth instead of the SOAP+token login.
+
+        Requires both halves of the Connected App credential - one without
+        the other can't complete the grant_type=password exchange.
+        """
+        return bool(self.SALESFORCE_CONSUMER_KEY and self.SALESFORCE_CONSUMER_SECRET)
 
     @property
     def smtp_configured(self) -> bool:

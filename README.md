@@ -56,7 +56,11 @@ demonstrated without spending call credit.
 ### 1. Salesforce custom fields
 
 The sync writes to custom fields on the **Lead** object. Create them under
-`Setup > Object Manager > Lead > Fields & Relationships` before running:
+`Setup > Object Manager > Lead > Fields & Relationships` before running, or
+run `uv run python scripts/setup_salesforce_fields.py` from `backend/` once
+`.env` has working credentials — it creates whichever of the nine don't
+already exist and leaves the rest alone, so it's safe to re-run (useful if
+this org ever gets rebuilt from scratch):
 
 | Field label              | API name                      | Type                                                        |
 | ------------------------ | ----------------------------- | ----------------------------------------------------------- |
@@ -125,7 +129,7 @@ locally only.
 ## Tests
 
 ```sh
-cd backend && uv run pytest          # 79 tests, no network, no credentials
+cd backend && uv run pytest          # 89 tests, no network, no credentials
 ```
 
 Providers are faked at the service boundary. Coverage targets the logic that
