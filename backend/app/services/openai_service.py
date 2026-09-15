@@ -42,7 +42,8 @@ Return a JSON object with exactly these keys:
 - summary: a brief summary for the CRM record
 - company_type: inferred industry and size, e.g. "SaaS startup"
 - client_lifestyle: inferred persona, e.g. "Busy, tech-savvy"
-- pain_points: the specific problems the caller raised
+- pain_points: the specific problems the caller raised, as a single string
+  (semicolon-separated if there is more than one)
 - agent_verdict: conversion probability and the reasoning behind it
 - email_body: a follow-up email body, with no subject line
 

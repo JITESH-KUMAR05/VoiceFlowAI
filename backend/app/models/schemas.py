@@ -76,6 +76,19 @@ class CallAnalysis(BaseModel):
     agent_verdict: str = "Manual review required"
     email_body: str = ""
 
+    @field_validator("pain_points", mode="before")
+    @classmethod
+    def _join_pain_points_list(cls, value: Any) -> Any:
+        """The prompt asks for a string; the model sometimes answers with a
+        list anyway (observed live: "the specific problems the caller
+        raised" reads as plural enough to invite one). Rejecting the whole
+        analysis over this one field's shape threw away a real score and
+        summary for no reason - join it instead of failing on it.
+        """
+        if isinstance(value, list):
+            return "; ".join(str(item) for item in value)
+        return value
+
 
 class ProviderStatus(BaseModel):
     twilio: bool
