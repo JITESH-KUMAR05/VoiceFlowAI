@@ -14,23 +14,16 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 from simple_salesforce import Salesforce
 
 from app.config import Settings
 from app.services.salesforce_service import SalesforceService
 
-TEST_MARKER = "integration-test.invalid"
+TEST_MARKER = "example.com"
 
-
-@pytest.fixture
-def sf_client(require_salesforce: Settings) -> Salesforce:
-    return Salesforce(
-        username=require_salesforce.SALESFORCE_USERNAME,
-        password=require_salesforce.SALESFORCE_PASSWORD,
-        security_token=require_salesforce.SALESFORCE_TOKEN,
-        domain=require_salesforce.SALESFORCE_DOMAIN,
-    )
+# sf_client comes from conftest.py - it connects through SalesforceService,
+# the same login path the app itself uses, rather than this file building
+# its own separate connection.
 
 
 def test_sync_call_data_creates_and_scores_a_real_lead(

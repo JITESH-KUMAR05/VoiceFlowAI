@@ -40,10 +40,10 @@ uv run pytest tests_integration/test_salesforce_live.py -v
 
 `test_salesforce_live.py` and `test_full_pipeline_live.py` create a Lead
 tagged with a distinctive marker (`LeadSource="VoiceFlow"` and an
-`@integration-test.invalid` email) and delete it in a `finally` block, so a
+`@example.com` email) and delete it in a `finally` block, so a
 failed assertion still cleans up. If a run is killed hard enough to skip that
 (a crashed process, `Ctrl+C` mid-request), search Salesforce for
-`Email LIKE '%@integration-test.invalid'` and delete what's left.
+`Email LIKE '%@example.com'` and delete what's left.
 
 ## Why these live outside `tests/`
 

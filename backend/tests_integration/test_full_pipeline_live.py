@@ -19,10 +19,9 @@ import pytest
 from fastapi.testclient import TestClient
 from simple_salesforce import Salesforce
 
-from app.config import Settings
 from app.main import create_app
 
-TEST_MARKER = "integration-test.invalid"
+TEST_MARKER = "example.com"
 
 
 @pytest.fixture
@@ -49,15 +48,11 @@ def _wait_for_lead(sf_client: Salesforce, email: str, attempts: int = 8):
 
 
 def test_a_browser_call_is_scored_and_synced_to_salesforce(
-    live_client: TestClient, require_salesforce: Settings
+    live_client: TestClient, sf_client: Salesforce
 ):
+    # sf_client comes from conftest.py - connected through SalesforceService,
+    # the same login path the app itself uses.
     test_email = f"qa-{uuid.uuid4().hex[:8]}@{TEST_MARKER}"
-    sf_client = Salesforce(
-        username=require_salesforce.SALESFORCE_USERNAME,
-        password=require_salesforce.SALESFORCE_PASSWORD,
-        security_token=require_salesforce.SALESFORCE_TOKEN,
-        domain=require_salesforce.SALESFORCE_DOMAIN,
-    )
 
     lead_id = None
     try:
@@ -94,7 +89,7 @@ def test_a_browser_call_is_scored_and_synced_to_salesforce(
         assert chat.json()["text"]
 
         ended = live_client.post(
-            "/api/browser/end", json={"session_id": session["call_sid"], "message": ""}
+            "/api/browser/end", json={"session_id": session["call_sid"], "message": "end"}
         )
         assert ended.status_code == 200
         assert ended.json()["status"] == "processing_started"
