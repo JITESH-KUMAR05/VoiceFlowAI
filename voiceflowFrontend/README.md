@@ -13,6 +13,15 @@ npm run dev             # http://localhost:8080
 
 The backend must be running for the call and CRM views to return data.
 
+**On Windows with Docker Desktop or WSL2 installed**: use `127.0.0.1`, not
+`localhost`, in `VITE_API_BASE_URL`. Docker/WSL's networking relay binds the
+IPv6 loopback addresses (`::1`, `::`) on common ports including `8000`, and
+Chrome resolves `localhost` to IPv6 first — so the browser silently talks to
+Docker's proxy instead of the backend (`uvicorn --host 0.0.0.0` only binds
+IPv4), and every request fails with "Could not reach the API" even though
+`curl 127.0.0.1:8000/health` from a terminal works fine. `.env.example`
+already defaults to `127.0.0.1` for this reason.
+
 ## Checks
 
 ```sh
