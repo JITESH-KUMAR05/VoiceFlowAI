@@ -847,7 +847,7 @@ wheels = [
 
 [[package]]
 name = "murf"
-version = "2.2.4"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -855,9 +855,9 @@ dependencies = [
     { name = "pydantic-core" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/53/b5/60a5722497c1df56e78df3665d11223240f2210860eb73641ee27c4d4d8c/murf-2.2.4.tar.gz", hash = "sha256:214fe8a1685c3b6afde637c5c73561e3e2fecc4619aed75c8f588a8a1cc32e25", size = 42183, upload-time = "2025-11-11T11:36:22.41Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/d6/cdcd3c9eff9feb9cd856753ca83a53ba0e6c0e2c61be76c97f92393baa3e/murf-2.3.0.tar.gz", hash = "sha256:4b62aaf73cf92d4f09a825e23624a9138dd75ff62b39763505ab0a50e44975b2", size = 42529, upload-time = "2026-03-05T12:42:30.373Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/1e/8f0f88810fd4a4d72296a732776783dc629c174fcaa7dbdcd98098df72b8/murf-2.2.4-py3-none-any.whl", hash = "sha256:777b0a1a483f42b4488199aaf7b15d94cf6d2dfa55d804a2c1b8564a84f99f7d", size = 78659, upload-time = "2025-11-11T11:36:21.123Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/e1/10495a841312d3fdb645c4d2219bcbde26048442b5fecb0edc3e21e74d9d/murf-2.3.0-py3-none-any.whl", hash = "sha256:2561145d9c0f6408b0774d4fd7a269ae042661aaf8961c6305fc78a0921eac86", size = 78948, upload-time = "2026-03-05T12:42:29.361Z" },
 ]
 
 [[package]]
@@ -1447,7 +1447,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "murf", specifier = ">=2.2.4" },
+    { name = "murf", specifier = ">=2.3.0" },
     { name = "openai", specifier = ">=2.14.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },

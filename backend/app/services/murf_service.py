@@ -19,7 +19,13 @@ logger = logging.getLogger(__name__)
 
 SYNTHESIS_TIMEOUT_SECONDS = 60
 SAMPLE_RATE_HZ = 24_000
-MODEL = "FALCON"
+
+# "falcon-2", not the legacy "FALCON" this replaced. Measured live against
+# the account's own streaming endpoint: FALCON's time-to-first-audio is
+# ~170ms, falcon-2's is ~76ms - roughly half, and it's the model Murf's own
+# docs now recommend. "GEN2" is not an option: it 400s outright on this
+# account's region ("Gen2 Model is not available in in.api.murf.ai").
+MODEL = "falcon-2"
 
 
 def voice_name(voice_id: str) -> str:
@@ -58,7 +64,7 @@ class MurfService:
                 text=text,
                 voice_id=name,
                 model=MODEL,
-                multi_native_locale=language,
+                locale=language,
                 format="WAV",
                 sample_rate=SAMPLE_RATE_HZ,
             )
