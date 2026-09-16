@@ -56,6 +56,21 @@ uv run pytest tests_integration -v
 See [`tests_integration/README.md`](tests_integration/README.md) for cost
 and cleanup details.
 
+## Latency benchmark
+
+```sh
+uv run uvicorn app.main:app --reload   # in one terminal
+uv run python scripts/benchmark_latency.py   # in another, once /health is up
+```
+
+Times every provider individually (Azure OpenAI reply and analysis, Murf
+time-to-first-chunk and full synthesis, Salesforce connect and sync) and the
+real end-to-end HTTP flow against the running server — deliberately not
+FastAPI's `TestClient`, which runs `BackgroundTasks` synchronously and would
+make `POST /api/browser/end` look far slower than it actually is in
+production. Same cost as the integration suite: real API calls, one
+Salesforce Lead created and deleted.
+
 ## Layout
 
 | Path                  | Responsibility                                        |

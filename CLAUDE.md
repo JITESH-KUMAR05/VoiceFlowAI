@@ -124,6 +124,32 @@ voiceflowFrontend/
 - **In-memory state is bounded.** Session and audio caches carry a TTL and a
   size ceiling. An unbounded module-level dict is a memory leak.
 
+## Salesforce authentication
+
+Two login modes in `SalesforceService._login_kwargs`, chosen by which
+credentials are set — never assume the legacy one still works on a given org:
+
+- **OAuth Client Credentials Flow** (preferred). `SALESFORCE_CONSUMER_KEY` +
+  `SALESFORCE_CONSUMER_SECRET`, from a Connected App / External Client App
+  with "Enable Client Credentials Flow" on and a "Run As" user set. No
+  username, password, or token anywhere in the exchange. **`SALESFORCE_DOMAIN`
+  must be the org's actual My Domain here** (e.g.
+  `orgfarm-xxxx-dev-ed.develop.my`), not the `login`/`test` aliases —
+  `simple_salesforce` only takes this path for a real domain.
+- **Legacy SOAP** (fallback, only used when the above is unset).
+  `SALESFORCE_USERNAME` + `SALESFORCE_PASSWORD` + `SALESFORCE_TOKEN`. Newer
+  orgs — trial "orgfarm" orgs especially — disable this by default, and the
+  toggle for it in Setup can be *locked*, not just off, with no admin
+  self-service way to re-enable it. OAuth's username-password grant has the
+  same problem on such orgs (Login History reports
+  `Username-Password Flow Disabled`) — don't reach for that as the fix,
+  Client Credentials is the one that actually works when SOAP is blocked.
+
+Run `uv run python scripts/setup_salesforce_fields.py` from `backend/` to
+create the nine custom Lead fields on a fresh or rebuilt org — idempotent,
+safe to re-run. Full reasoning in `docs/architecture.md`'s "OAuth Client
+Credentials Flow" decision entry.
+
 ## Testing
 
 **Backend:** `pytest` from `backend/`. Tests must run with no network and no
@@ -147,6 +173,16 @@ gap to close; a full component-testing setup is a separate decision.
 
 Both suites run in CI (`.github/workflows/ci.yml`) on every push and PR,
 alongside a secret scan.
+
+**Live integration tests** in `backend/tests_integration/` hit real Azure
+OpenAI, Murf, and Salesforce (never a real phone call — Twilio only gets a
+credentials check). Excluded from CI and a bare `pytest` by `testpaths`; run
+explicitly with `uv run pytest tests_integration -v`. Verified passing
+end-to-end against the current org, including `test_full_pipeline_live.py`
+driving one full browser call through every real provider at once. If you
+touch `SalesforceService`'s login logic, run this suite before claiming the
+change works — the unit suite fakes the provider and cannot catch an auth
+mode that's actually broken.
 
 ## Commits
 
@@ -176,7 +212,7 @@ cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run test && np
 only holds project references, so a bare `tsc --noEmit` typechecks nothing and
 exits 0 no matter how broken the code is.
 
-Current baseline: 79 backend tests passing, 25 frontend tests passing, 0 lint
+Current baseline: 90 backend tests passing, 25 frontend tests passing, 0 lint
 errors, 0 type errors, formatting clean (`npm run format:check`). The 7
 remaining lint warnings are `react-refresh/only-export-components` in the
 shadcn primitives, which is inherent to how those files are written.
