@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from twilio.base.exceptions import TwilioRestException
 
 from app.main import create_app
 from app.services.container import Services
@@ -145,6 +146,33 @@ def test_supplying_a_phone_number_places_a_call(client, services):
 
     assert services.twilio.calls == ["+15551234567"]
     assert response.json()["status"] == "call_initiated"
+
+
+def test_a_twilio_failure_is_reported_as_a_clean_error(client, services):
+    def _raise(to_number: str) -> str:
+        raise TwilioRestException(
+            status=400,
+            uri="/Calls",
+            msg=(
+                "Unable to create record: The source phone number provided, "
+                "+19713654854, is not yet verified for your account."
+            ),
+            code=21212,
+        )
+
+    services.twilio.initiate_call = _raise
+
+    response = client.post(
+        "/api/phone/call",
+        json={
+            "lead_name": "Asha",
+            "agent_type": "b2b",
+            "phone_number": "+15551234567",
+        },
+    )
+
+    assert response.status_code == 502
+    assert "not yet verified" in response.json()["detail"]
 
 
 def test_a_malformed_phone_number_is_rejected(client):

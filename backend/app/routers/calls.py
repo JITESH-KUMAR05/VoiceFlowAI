@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from twilio.base.exceptions import TwilioRestException
 
 from app.models.schemas import (
     BrowserChatRequest,
@@ -56,7 +57,13 @@ async def initiate_call(
                     "Omit phone_number to run the same pipeline in the browser."
                 ),
             )
-        session_id = services.twilio.initiate_call(payload.phone_number)
+        try:
+            session_id = services.twilio.initiate_call(payload.phone_number)
+        except TwilioRestException as exc:
+            # exc.msg is Twilio's own human-readable explanation (e.g. an
+            # unverified caller ID on a trial account) - worth surfacing
+            # rather than letting it collapse into a bare 500.
+            raise HTTPException(status_code=502, detail=exc.msg) from exc
         status = "call_initiated"
     else:
         session_id = uuid.uuid4().hex
