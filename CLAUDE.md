@@ -150,6 +150,19 @@ create the nine custom Lead fields on a fresh or rebuilt org — idempotent,
 safe to re-run. Full reasoning in `docs/architecture.md`'s "OAuth Client
 Credentials Flow" decision entry.
 
+## Twilio calls
+
+`app/routers/calls.py`'s `initiate_call` catches `TwilioRestException` around
+`services.twilio.initiate_call()` and re-raises as `HTTPException(502,
+detail=exc.msg)` — Twilio's own message is specific (e.g. "the source phone
+number is not yet verified for your account") and worth surfacing instead of
+collapsing into a bare, contentless 500. Follow the same pattern for any other
+router that calls a Twilio SDK method directly.
+
+A Twilio **Trial** account will only place calls from a number verified in the
+console, and only to numbers that are themselves verified there — check both
+before assuming a call failure is a code bug.
+
 ## Testing
 
 **Backend:** `pytest` from `backend/`. Tests must run with no network and no
@@ -212,7 +225,7 @@ cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run test && np
 only holds project references, so a bare `tsc --noEmit` typechecks nothing and
 exits 0 no matter how broken the code is.
 
-Current baseline: 90 backend tests passing, 25 frontend tests passing, 0 lint
+Current baseline: 98 backend tests passing, 25 frontend tests passing, 0 lint
 errors, 0 type errors, formatting clean (`npm run format:check`). The 7
 remaining lint warnings are `react-refresh/only-export-components` in the
 shadcn primitives, which is inherent to how those files are written.
