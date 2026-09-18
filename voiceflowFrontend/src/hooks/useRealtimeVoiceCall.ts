@@ -12,10 +12,17 @@
  * `MicVAD.new()`'s options type (`RealTimeVADOptions`) is a large interface
  * covering model selection, audio-worklet wiring, and stream lifecycle, but
  * `MicVAD.new` accepts a `Partial<RealTimeVADOptions>` - only
- * `onSpeechStart` and `onSpeechEnd` are set here, and the library fills in
- * the rest (model, getUserMedia-backed stream, worklet asset paths) from its
- * own defaults. Verified against the installed version's
- * `node_modules/@ricky0123/vad-web/dist/real-time-vad.d.ts`.
+ * `onSpeechStart`, `onSpeechEnd`, and the two asset-path overrides below are
+ * set here, and the library fills in the rest (model choice, the
+ * getUserMedia-backed stream) from its own defaults. Verified against the
+ * installed version's `node_modules/@ricky0123/vad-web/dist/real-time-vad.d.ts`.
+ * The asset-path overrides are required: in a bundled/ESM context (this
+ * app, not the library's `<script src=cdn>` quick-start) `MicVAD.new()`
+ * cannot locate `document.currentScript`, so its default `baseAssetPath`/
+ * `onnxWASMBasePath` ("./") resolve against this site's own root, which
+ * serves nothing there - the ONNX model and WASM files 404 and voice
+ * detection never starts. Pointing both at jsDelivr, pinned to the exact
+ * installed versions, fixes that.
  */
 import { useEffect, useRef, useState } from "react";
 import { MicVAD } from "@ricky0123/vad-web";
@@ -54,14 +61,54 @@ let messageCounter = 0;
 const nextId = () => `rm${++messageCounter}`;
 
 /** Float32 samples in [-1, 1] -> 16-bit signed PCM, matching what
- * backend/app/audio_utils.py expects on the wire. */
-function floatTo16BitPCM(audio: Float32Array): Int16Array {
+ * backend/app/audio_utils.py expects on the wire. Exported for unit testing
+ * (useRealtimeVoiceCall.test.ts) - it has no DOM/AudioContext dependency, so
+ * it doesn't need the hook's own runtime to exercise. */
+export function floatTo16BitPCM(audio: Float32Array): Int16Array {
   const pcm = new Int16Array(audio.length);
   for (let i = 0; i < audio.length; i++) {
     const sample = Math.max(-1, Math.min(1, audio[i]));
     pcm[i] = sample < 0 ? sample * 32768 : sample * 32767;
   }
   return pcm;
+}
+
+/**
+ * Reassemble one WS binary frame into whole 16-bit PCM samples, carrying
+ * any odd trailing byte forward via `pending` for the next chunk.
+ *
+ * backend/app/services/murf_service.py streams Murf's TTS response through
+ * unmodified (`yield from stream`) - each chunk is whatever byte range the
+ * underlying HTTP stream buffered, not aligned to 2-byte PCM samples. Most
+ * chunks happen to come out even, but an odd-length one is routine, not
+ * corruption: `new Int16Array(chunk)` throws "byte length ... should be a
+ * multiple of 2" on those (confirmed against a live call, see task-12
+ * report), which drops that chunk's audio and spams the console. Carrying
+ * the leftover byte into the next chunk instead reassembles the samples
+ * losslessly across the split. Exported for unit testing, for the same
+ * reason as floatTo16BitPCM above.
+ */
+export function alignPcmChunk(
+  chunk: ArrayBuffer,
+  pending: Uint8Array | null,
+): { samples: Int16Array; carry: Uint8Array | null } {
+  const incoming = new Uint8Array(chunk);
+  const combined = pending
+    ? new Uint8Array(pending.length + incoming.length)
+    : incoming;
+  if (pending) {
+    combined.set(pending, 0);
+    combined.set(incoming, pending.length);
+  }
+  const evenLength = combined.length - (combined.length % 2);
+  const carry =
+    combined.length % 2 === 1 ? combined.slice(evenLength) : null;
+  // `combined` is either a fresh, zero-offset Uint8Array (the pending
+  // branch) or a zero-offset view straight over `chunk` (no pending) - the
+  // resulting byteOffset is always 0, so this Int16Array view is always
+  // validly aligned.
+  const samples = new Int16Array(combined.buffer, combined.byteOffset, evenLength / 2);
+  return { samples, carry };
 }
 
 /**
@@ -83,6 +130,11 @@ export function useRealtimeVoiceCall({
   // chunks the server already wrote to the socket before processing our
   // cancel() are still arriving and must be thrown away, not played.
   const discardingAudioRef = useRef(false);
+  // Leftover single byte from the end of the previous audio chunk when its
+  // length was odd - see alignPcmChunk. Reset any time the discard flag is,
+  // since a stray byte from an abandoned reply must never prefix the next
+  // one's audio.
+  const pendingAudioByteRef = useRef<Uint8Array | null>(null);
 
   // Keep the latest onError in a ref rather than the main effect's
   // dependency array. Task 12 will pass an inline arrow function, which is
@@ -105,6 +157,7 @@ export function useRealtimeVoiceCall({
     // forever, since nothing but a "cancelled" ack on the old socket would
     // ever have cleared it.
     discardingAudioRef.current = false;
+    pendingAudioByteRef.current = null;
     const audioContext = new AudioContext();
     const player = new RealtimeAudioPlayer(audioContext);
 
@@ -118,7 +171,12 @@ export function useRealtimeVoiceCall({
         if (discardingAudioRef.current) return;
         isAgentSpeakingRef.current = true;
         setState("agent_speaking");
-        player.enqueue(new Int16Array(chunk));
+        const { samples, carry } = alignPcmChunk(
+          chunk,
+          pendingAudioByteRef.current,
+        );
+        pendingAudioByteRef.current = carry;
+        if (samples.length > 0) player.enqueue(samples);
       },
       // A text frame is a JSON control message - append transcript lines,
       // or react to the turn ending, erroring, or being cancelled.
@@ -135,6 +193,7 @@ export function useRealtimeVoiceCall({
           ]);
         } else if (message.type === "turn_end") {
           isAgentSpeakingRef.current = false;
+          pendingAudioByteRef.current = null;
           setState("listening");
         } else if (message.type === "error") {
           isAgentSpeakingRef.current = false;
@@ -143,6 +202,7 @@ export function useRealtimeVoiceCall({
           // discard flag stuck waiting for a "cancelled" ack that may
           // never come now.
           discardingAudioRef.current = false;
+          pendingAudioByteRef.current = null;
           player.stop();
           onErrorRef.current(message.detail);
           setState("listening");
@@ -152,6 +212,7 @@ export function useRealtimeVoiceCall({
           // have now been accounted for, so it's safe to accept audio
           // again for the next reply.
           discardingAudioRef.current = false;
+          pendingAudioByteRef.current = null;
         }
       },
       onClose: () => {
@@ -163,6 +224,15 @@ export function useRealtimeVoiceCall({
     let vad: MicVAD | null = null;
 
     MicVAD.new({
+      // Bundled (non-<script src=cdn>) usage can't rely on
+      // document.currentScript to locate its own assets, so it falls back
+      // to the site's root ("/") and 404s there - nothing in this frontend
+      // serves the ONNX model or WASM files locally. Point both at jsDelivr
+      // instead, pinned to the exact versions installed
+      // (@ricky0123/vad-web and onnxruntime-web in package.json) so the
+      // assets actually resolve.
+      baseAssetPath: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.31/dist/",
+      onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/",
       // The caller started talking. If the agent's reply is still
       // playing, this is a barge-in: stop local playback, discard any
       // reply audio already in flight, and tell the backend to abandon
@@ -173,6 +243,7 @@ export function useRealtimeVoiceCall({
           player.stop();
           isAgentSpeakingRef.current = false;
           discardingAudioRef.current = true;
+          pendingAudioByteRef.current = null;
           client.cancel();
         }
         setState("speaking");
