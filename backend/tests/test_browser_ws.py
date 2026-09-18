@@ -6,6 +6,7 @@ wire protocol and the cancellation behaviour, not the real providers.
 
 from __future__ import annotations
 
+import queue
 import threading
 
 from fastapi.testclient import TestClient
@@ -41,17 +42,27 @@ class FakeMurf:
 
 class SlowFakeMurf:
     """Yields one chunk, then blocks until the test releases it - used to
-    make the barge-in test deterministic instead of racing a fast fake."""
+    make the barge-in test deterministic instead of racing a fast fake.
+
+    ``finished`` only becomes True once the generator is resumed *past* the
+    second yield - i.e. once something calls ``next()`` on it a third time.
+    A genuinely cancelled turn never does that (the async consumer stopped
+    iterating), so this flag is the test's proof that cancellation actually
+    stopped the work rather than merely being acknowledged while the turn
+    kept running in the background.
+    """
 
     def __init__(self):
         self.release = threading.Event()
         self.calls: list[tuple] = []
+        self.finished = False
 
     def create_audio_stream(self, text, voice_id, language="en-US", audio_format="WAV"):
         self.calls.append((text, voice_id, language, audio_format))
         yield b"chunk-a"
         self.release.wait(timeout=5)
         yield b"chunk-b"
+        self.finished = True
 
 
 class FakeWhisper:
@@ -99,6 +110,35 @@ def _start_browser_session(client) -> str:
         "/api/phone/call", json={"lead_name": "Asha", "agent_type": "b2b"}
     )
     return response.json()["call_sid"]
+
+
+def _try_receive(ws, timeout: float):
+    """Return the next raw ASGI message from ``ws``, or ``None`` if nothing
+    arrives within ``timeout`` seconds.
+
+    ``WebSocketTestSession.receive()`` blocks forever if the server never
+    sends anything else, so proving "no further message arrives" needs a
+    bounded wait rather than a direct call. The blocking receive runs in a
+    background thread; a plain ``queue.Queue`` hands its result (or the fact
+    that none arrived) back to the caller without the test itself blocking
+    past the timeout.
+    """
+    result: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+
+    def _receive():
+        try:
+            result.put(("message", ws.receive()))
+        except Exception as exc:  # connection closed underneath us, etc.
+            result.put(("error", exc))
+
+    threading.Thread(target=_receive, daemon=True).start()
+    try:
+        kind, value = result.get(timeout=timeout)
+    except queue.Empty:
+        return None
+    if kind == "error":
+        raise value
+    return value
 
 
 def test_connecting_to_an_unknown_session_gets_an_error_then_closes():
@@ -179,5 +219,20 @@ def test_barge_in_cancels_the_in_flight_turn_before_it_finishes():
             ws.send_json({"type": "cancel"})
             assert ws.receive_json() == {"type": "cancelled"}
 
-    # Let the blocked generator thread finish so it doesn't leak past the test.
-    slow_murf.release.set()
+            # The "cancelled" ack is sent unconditionally by the cancel
+            # branch, so by itself it doesn't prove the turn actually
+            # stopped - only that the client was told to stop waiting.
+            # Unblock the worker thread SlowFakeMurf parked mid-stream: if
+            # the turn were merely acked while still running in the
+            # background (i.e. current_turn.cancel() were a no-op), this is
+            # what lets it push chunk-b and turn_end. If it was genuinely
+            # cancelled, nothing is left consuming the generator, so
+            # neither message should ever arrive.
+            slow_murf.release.set()
+            leftover = _try_receive(ws, timeout=1.0)
+
+    assert leftover is None, f"turn kept streaming after cancel: {leftover!r}"
+    # Confirms the same thing from the fake's side: the line after
+    # `yield b"chunk-b"` only runs on a third call to next() on the
+    # generator, which a genuinely cancelled consumer never makes.
+    assert slow_murf.finished is False
