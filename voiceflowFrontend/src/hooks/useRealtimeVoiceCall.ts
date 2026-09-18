@@ -98,6 +98,13 @@ export function useRealtimeVoiceCall({
     if (!enabled) return;
 
     let cancelled = false;
+    // Reset for this run of the effect - if the previous run tore down
+    // (socket died mid-reply with no reconnect, or `enabled`/`sessionId`
+    // changed) while a barge-in's cancel() was still outstanding, a stale
+    // `true` here would otherwise discard every chunk of the new call
+    // forever, since nothing but a "cancelled" ack on the old socket would
+    // ever have cleared it.
+    discardingAudioRef.current = false;
     const audioContext = new AudioContext();
     const player = new RealtimeAudioPlayer(audioContext);
 
@@ -131,6 +138,11 @@ export function useRealtimeVoiceCall({
           setState("listening");
         } else if (message.type === "error") {
           isAgentSpeakingRef.current = false;
+          // An error is another legitimate way the client learns the turn
+          // is over even if a cancel was outstanding - don't leave the
+          // discard flag stuck waiting for a "cancelled" ack that may
+          // never come now.
+          discardingAudioRef.current = false;
           player.stop();
           onErrorRef.current(message.detail);
           setState("listening");
