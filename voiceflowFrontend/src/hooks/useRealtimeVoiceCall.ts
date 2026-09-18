@@ -191,6 +191,13 @@ export function useRealtimeVoiceCall({
       // caller mid-sentence.
       onAudioChunk: (chunk) => {
         if (discardingAudioRef.current) return;
+        // Incoming audio is proof this turn is still live server-side, so
+        // re-arm here rather than relying solely on onSpeechEnd having set
+        // it once - a stale cancelled/turn_end (e.g. a delayed ack from an
+        // earlier turn) would otherwise leave a live turn wrongly marked
+        // "not in flight," so a later barge-in would skip both cancel()
+        // and discarding its audio.
+        turnInFlightRef.current = true;
         setState("agent_speaking");
         const { samples, carry } = alignPcmChunk(
           chunk,
