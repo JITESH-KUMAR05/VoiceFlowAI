@@ -33,6 +33,7 @@ class SupportsTwilio(Protocol):
 class Services:
     openai: Any
     murf: Any
+    whisper: Any
     salesforce: Any
     email: Any
     sessions: SessionStore
@@ -49,6 +50,7 @@ def build_services(settings: Settings) -> Services:
     from app.services.murf_service import MurfService
     from app.services.openai_service import OpenAIService
     from app.services.salesforce_service import SalesforceService
+    from app.services.whisper_service import WhisperService
 
     twilio = None
     if settings.twilio_configured:
@@ -63,6 +65,7 @@ def build_services(settings: Settings) -> Services:
     return Services(
         openai=OpenAIService(settings),
         murf=MurfService(settings),
+        whisper=WhisperService(settings),
         salesforce=SalesforceService(settings),
         email=EmailService(settings),
         sessions=SessionStore(

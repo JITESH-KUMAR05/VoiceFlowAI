@@ -38,6 +38,19 @@ class FakeMurf:
         yield b"RIFF-fake-wav-bytes"
 
 
+class FakeWhisper:
+    """Fake Whisper service for testing real-time transcription."""
+
+    def __init__(self, transcript: str = "What does it cost?"):
+        self.transcript = transcript
+        self.calls: list[bytes] = []
+
+    async def transcribe(self, wav_bytes: bytes) -> str:
+        """Record the call and return a preset transcript."""
+        self.calls.append(wav_bytes)
+        return self.transcript
+
+
 class FakeTwilio:
     configured = True
 
@@ -86,6 +99,7 @@ def services():
     return Services(
         openai=FakeOpenAI(),
         murf=FakeMurf(),
+        whisper=FakeWhisper(),
         twilio=FakeTwilio(),
         salesforce=FakeSalesforce(),
         email=FakeEmail(),
