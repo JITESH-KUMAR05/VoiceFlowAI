@@ -101,13 +101,16 @@ export function alignPcmChunk(
     combined.set(incoming, pending.length);
   }
   const evenLength = combined.length - (combined.length % 2);
-  const carry =
-    combined.length % 2 === 1 ? combined.slice(evenLength) : null;
+  const carry = combined.length % 2 === 1 ? combined.slice(evenLength) : null;
   // `combined` is either a fresh, zero-offset Uint8Array (the pending
   // branch) or a zero-offset view straight over `chunk` (no pending) - the
   // resulting byteOffset is always 0, so this Int16Array view is always
   // validly aligned.
-  const samples = new Int16Array(combined.buffer, combined.byteOffset, evenLength / 2);
+  const samples = new Int16Array(
+    combined.buffer,
+    combined.byteOffset,
+    evenLength / 2,
+  );
   return { samples, carry };
 }
 
@@ -124,7 +127,16 @@ export function useRealtimeVoiceCall({
 }: UseRealtimeVoiceCallOptions) {
   const [state, setState] = useState<RealtimeCallState>("connecting");
   const [messages, setMessages] = useState<RealtimeMessage[]>([]);
-  const isAgentSpeakingRef = useRef(false);
+  // True from the moment the client sends an utterance (a turn "starts")
+  // until the server says that turn is over - turn_end, error, or a
+  // cancelled ack. This tracks the SERVER-side turn only, deliberately
+  // separate from whether audio is still audibly playing here (see
+  // RealtimeAudioPlayer.isPlaying): Murf synthesizes faster than real time,
+  // so turn_end routinely arrives 1-2 seconds before the queued audio
+  // finishes playing. Barge-in must stop playback based on isPlaying, but
+  // should only send client.cancel() when there's actually a server-side
+  // turn left to cancel - this ref is what answers that.
+  const turnInFlightRef = useRef(false);
   // True from the moment a barge-in cancels the in-flight reply until the
   // server confirms the cancellation - covers the window where audio
   // chunks the server already wrote to the socket before processing our
@@ -158,8 +170,18 @@ export function useRealtimeVoiceCall({
     // ever have cleared it.
     discardingAudioRef.current = false;
     pendingAudioByteRef.current = null;
+    turnInFlightRef.current = false;
     const audioContext = new AudioContext();
-    const player = new RealtimeAudioPlayer(audioContext);
+    // onDrain fires once the agent's audio has actually finished playing
+    // (as opposed to turn_end, which only means the server finished
+    // streaming it). Only treat that as "done" if the server-side turn has
+    // also actually ended - a brief gap between chunks mid-turn can drain
+    // the queue momentarily too, and flipping to "listening" then would be
+    // wrong; the next chunk's onAudioChunk puts it back to
+    // "agent_speaking" regardless, so this just avoids the interim flicker.
+    const player = new RealtimeAudioPlayer(audioContext, () => {
+      if (!cancelled && !turnInFlightRef.current) setState("listening");
+    });
 
     const client = new RealtimeCallClient(sessionId, {
       // A binary frame is one chunk of the agent's synthesized speech.
@@ -169,7 +191,6 @@ export function useRealtimeVoiceCall({
       // caller mid-sentence.
       onAudioChunk: (chunk) => {
         if (discardingAudioRef.current) return;
-        isAgentSpeakingRef.current = true;
         setState("agent_speaking");
         const { samples, carry } = alignPcmChunk(
           chunk,
@@ -192,11 +213,17 @@ export function useRealtimeVoiceCall({
             { id: nextId(), role: "agent", text: message.text },
           ]);
         } else if (message.type === "turn_end") {
-          isAgentSpeakingRef.current = false;
+          // The server has finished streaming this turn's audio, but Murf
+          // synthesizes faster than real time - RealtimeAudioPlayer is
+          // typically still draining 1-2 seconds of already-scheduled
+          // audio at this point. Only claim "listening" here if playback
+          // has genuinely caught up too; otherwise the player's onDrain
+          // callback (above) will flip state once it actually has.
+          turnInFlightRef.current = false;
           pendingAudioByteRef.current = null;
-          setState("listening");
+          if (!player.isPlaying) setState("listening");
         } else if (message.type === "error") {
-          isAgentSpeakingRef.current = false;
+          turnInFlightRef.current = false;
           // An error is another legitimate way the client learns the turn
           // is over even if a cancel was outstanding - don't leave the
           // discard flag stuck waiting for a "cancelled" ack that may
@@ -211,6 +238,7 @@ export function useRealtimeVoiceCall({
           // chunks from the abandoned reply that were already in flight
           // have now been accounted for, so it's safe to accept audio
           // again for the next reply.
+          turnInFlightRef.current = false;
           discardingAudioRef.current = false;
           pendingAudioByteRef.current = null;
         }
@@ -231,27 +259,36 @@ export function useRealtimeVoiceCall({
       // instead, pinned to the exact versions installed
       // (@ricky0123/vad-web and onnxruntime-web in package.json) so the
       // assets actually resolve.
-      baseAssetPath: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.31/dist/",
-      onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/",
-      // The caller started talking. If the agent's reply is still
-      // playing, this is a barge-in: stop local playback, discard any
-      // reply audio already in flight, and tell the backend to abandon
-      // the in-flight reply before it wastes more tokens/audio on
-      // something no one will hear.
+      baseAssetPath:
+        "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.31/dist/",
+      onnxWASMBasePath:
+        "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/",
+      // The caller started talking - this is a barge-in whenever the agent
+      // is still audibly playing, regardless of whether the server-side
+      // turn has already finished (turn_end can arrive 1-2 seconds before
+      // playback actually drains - see RealtimeAudioPlayer.isPlaying).
+      // Stopping playback and cancelling the server turn are two separate
+      // decisions: always stop playback if it's still going, but only send
+      // cancel() if there's an actual in-flight server turn to abandon -
+      // sending it for a turn that already fully finished server-side
+      // would be a no-op cancel with nothing to show for it.
       onSpeechStart: () => {
-        if (isAgentSpeakingRef.current) {
+        if (player.isPlaying) {
           player.stop();
-          isAgentSpeakingRef.current = false;
+        }
+        if (turnInFlightRef.current && !discardingAudioRef.current) {
           discardingAudioRef.current = true;
           pendingAudioByteRef.current = null;
           client.cancel();
         }
         setState("speaking");
       },
-      // The caller finished a complete utterance - hand it to the backend
-      // and go back to listening for the next one.
+      // The caller finished a complete utterance - hand it to the backend,
+      // mark a server turn as now in flight (cleared on turn_end/error/
+      // cancelled), and go back to listening for the next one.
       onSpeechEnd: (audio: Float32Array) => {
         client.sendUtterance(floatTo16BitPCM(audio));
+        turnInFlightRef.current = true;
         setState("listening");
       },
     })
