@@ -207,10 +207,15 @@ Deliberate scope choices, not oversights.
   If the server is killed between the webhook response and the task
   finishing, that call's outcome is silently lost; nothing retries it. A
   durable queue (Celery, RQ, or similar) is the fix.
-- **Browser mode needs Chromium.** It relies on the Web Speech API, which is
-  not a standard.
-- **No call recording or barge-in.** The agent finishes its sentence before it
-  listens again.
+- **Browser mode needs a modern browser.** It uses `@ricky0123/vad-web`
+  (WebAssembly voice-activity detection) and the Web Audio API's
+  AudioWorklet — broadly supported in current Chrome, Firefox, Safari, and
+  Edge, but not the browser's native Web Speech API (that was replaced;
+  transcription is now server-side Whisper).
+- **No call recording. Barge-in only works in the browser.** The caller can
+  interrupt the agent mid-sentence in a browser call. Real Twilio phone
+  calls still play the full reply before listening again — that needs
+  Twilio Media Streams (a WebSocket transport), which is follow-up work.
 
 ## Repository layout
 

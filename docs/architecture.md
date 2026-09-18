@@ -191,6 +191,41 @@ suite exists because the app can now be constructed with fakes.
 through the container rather than seeing `openai_service` at the top of the
 file.
 
+## Decision: WebSocket + client VAD + batch Whisper for real-time browser conversation
+
+**What.** Browser calls replace push-to-talk with a continuous turn loop:
+`@ricky0123/vad-web` (Silero VAD, WebAssembly) runs client-side and detects
+speech start/end on the mic; a WebSocket carries raw PCM to
+`app/routers/browser_ws.py`, which batch-transcribes each complete utterance
+through Whisper, runs it through the existing persona/OpenAI pipeline, and
+streams Murf's TTS chunks back for gapless Web Audio playback. VAD keeps
+running during agent playback so the caller can interrupt it (barge-in).
+Full design in `docs/superpowers/specs/2026-09-18-realtime-browser-conversation-design.md`.
+
+**Why WebSocket over WebRTC.** WebRTC gives lower latency and built-in
+jitter buffering, but needs SDP negotiation and likely a STUN/TURN server —
+real complexity a browser tab on a normal connection doesn't need yet. A
+persistent WebSocket carrying raw PCM chunks is enough to hit the actual
+goals (no button, low perceived latency, barge-in).
+
+**Why batch Whisper over true streaming ASR.** Word-by-word partial
+transcription (Azure OpenAI's Realtime API, Azure Speech, Deepgram) either
+means the GPT-Realtime speech-to-speech rearchitecture already decided
+against elsewhere in this project, or a new Azure resource (Azure Speech is
+a separate product from Azure OpenAI). Batch-transcribing per
+VAD-detected utterance, on top of an already-real-time transport, gets no
+button, low perceived latency, and barge-in without either cost.
+
+**Cost — CDN-hosted VAD assets.** `@ricky0123/vad-web`'s ONNX model and
+`onnxruntime-web`'s WASM binaries are loaded at runtime from jsDelivr
+(`useRealtimeVoiceCall.ts`), pinned to the exact versions in
+`package-lock.json` (`@ricky0123/vad-web@0.0.31`, `onnxruntime-web@1.30.0`)
+rather than bundled or self-hosted. This is a known tradeoff, not an
+oversight: it breaks in an offline dev environment or behind a strict CSP
+that blocks jsDelivr, and it makes the feature depend on jsDelivr's uptime.
+Self-hosting the assets is the fix if either matters; not done because it
+adds a build step for a portfolio project's demo path.
+
 ## A testing pitfall worth knowing: env vars leak through kwargs
 
 `Settings` is a `pydantic-settings` `BaseSettings`. Constructing it with
@@ -224,10 +259,13 @@ be constructed explicitly, from every source the object reads.
 - **Authentication and tenancy.** Every endpoint except the Twilio webhooks is
   open. Adding real auth is not hard; pretending a demo has it would be
   dishonest, and it is out of scope.
-- **Barge-in.** The agent finishes its sentence before listening again. Real
-  interruption handling needs bidirectional streaming — Twilio Media Streams
-  over a WebSocket — which is a different architecture from request/response
-  TwiML.
+- **Barge-in on real phone calls.** Twilio calls still play the full reply
+  before listening again. Real interruption handling there needs
+  bidirectional streaming — Twilio Media Streams over a WebSocket — which is
+  a different architecture from request/response TwiML. Browser calls no
+  longer have this limitation: as of the real-time browser conversation
+  feature (see the WebSocket decision below), the client runs continuous
+  VAD and can interrupt agent playback mid-reply.
 - **A datastore.** Call records are appended to a JSON file, rewritten whole,
   unsafe under concurrent writers, and read by nothing. It is a debugging
   convenience and is labelled as one.

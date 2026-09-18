@@ -225,15 +225,18 @@ cd voiceflowFrontend && npm run lint && npx tsc -b --force && npm run test && np
 only holds project references, so a bare `tsc --noEmit` typechecks nothing and
 exits 0 no matter how broken the code is.
 
-Current baseline: 98 backend tests passing, 25 frontend tests passing, 0 lint
+Current baseline: 115 backend tests passing, 45 frontend tests passing, 0 lint
 errors, 0 type errors, formatting clean (`npm run format:check`). The 7
 remaining lint warnings are `react-refresh/only-export-components` in the
 shadcn primitives, which is inherent to how those files are written.
 
 Frontend tests (`vitest`) cover pure logic only — `lib/api.ts`'s error
-handling, `lib/status.ts`'s score bands, `hooks/useLeads.ts`'s aggregation.
-There is no component-rendering test setup; adding one is a bigger decision
-than a drive-by addition and should be its own conversation.
+handling, `lib/status.ts`'s score bands, `hooks/useLeads.ts`'s aggregation,
+`lib/realtimeAudioPlayer.ts`'s playback scheduling (including `isPlaying`
+and the queue-drained callback), and `hooks/useRealtimeVoiceCall.ts`'s
+exported pure helpers (`floatTo16BitPCM`, `alignPcmChunk`). There is no
+component-rendering test setup; adding one is a bigger decision than a
+drive-by addition and should be its own conversation.
 
 If something fails, say so and show the failure. A partially working change
 reported as complete is worse than an honest broken one.
