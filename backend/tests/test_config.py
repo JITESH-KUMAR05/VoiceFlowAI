@@ -148,3 +148,15 @@ def test_an_empty_origins_string_yields_no_origins():
 def test_a_trailing_comma_does_not_produce_an_empty_origin():
     settings = build(**REQUIRED, CORS_ORIGINS="http://localhost:8080,")
     assert settings.cors_origins == ["http://localhost:8080"]
+
+
+def test_the_whisper_deployment_name_defaults_to_whisper1():
+    settings = build(**REQUIRED)
+
+    assert settings.AZURE_OPENAI_WHISPER_DEPLOYMENT_NAME == "whisper1"
+
+
+def test_the_whisper_deployment_name_is_overridable():
+    settings = build(**REQUIRED, AZURE_OPENAI_WHISPER_DEPLOYMENT_NAME="whisper-eu")
+
+    assert settings.AZURE_OPENAI_WHISPER_DEPLOYMENT_NAME == "whisper-eu"

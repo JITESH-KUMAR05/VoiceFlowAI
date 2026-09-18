@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str
     AZURE_OPENAI_DEPLOYMENT_NAME: str
     AZURE_OPENAI_API_VERSION: str = "2024-12-01-preview"
+    # Deployment name for Whisper transcription. Confirmed live: this Azure
+    # OpenAI resource's Whisper deployment is named "whisper1", not "whisper"
+    # (the UI auto-suffixed it when the "whisper" model landed in a
+    # different region than the resource's other deployments).
+    AZURE_OPENAI_WHISPER_DEPLOYMENT_NAME: str = "whisper1"
 
     # --- Murf: required. Streamed speech synthesis. ---
     MURF_API_KEY: str
