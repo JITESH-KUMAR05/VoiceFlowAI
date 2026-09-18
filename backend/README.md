@@ -20,6 +20,35 @@ pipeline, which is how the project is demonstrated without a provisioned
 number. `GET /health` reports which providers this instance has credentials
 for.
 
+### On Windows with Smart App Control enabled
+
+`uv sync`/`uv run` can fail with `An Application Control policy has blocked
+this file (os error 4551)`. This is Windows Smart App Control blocking
+`.venv/Scripts/python.exe` — `uv` writes a small unsigned launcher there on
+Windows, which Smart App Control refuses to run since it has no signature or
+reputation, regardless of anything about this project. Confirm the cause via
+`Get-AuthenticodeSignature .venv\Scripts\python.exe` (`NotSigned` versus a
+real Python install's `Valid`) or the `Microsoft-Windows-CodeIntegrity/Operational`
+event log (event ID 3033/3077 naming `uv.exe` as the blocked loader).
+
+Fix without touching Smart App Control's own setting (which Microsoft's own
+docs say cannot be turned back on without reinstalling Windows once
+disabled): recreate the venv with the standard library instead of uv's own
+venv creation, which copies the real interpreter and keeps its Python
+Software Foundation signature intact, then let `uv` install into it:
+
+```sh
+rm -rf .venv
+python -m venv .venv      # NOT `uv venv` - keeps the real interpreter's signature
+uv sync
+```
+
+`uv sync` may still rewrite the launcher into an unsigned one on subsequent
+runs; empirically, a freshly-generated launcher (new hash, never seen before)
+has been passing Smart App Control even though the project's original one
+was blocked outright, though this isn't a documented guarantee - if it stops
+working, repeat the steps above.
+
 ### Taking real calls
 
 Twilio reaches the webhooks from the internet, so the service needs a public
