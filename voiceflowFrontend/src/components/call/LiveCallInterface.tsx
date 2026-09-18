@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, PhoneOff, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { api, describeError } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useRealtimeVoiceCall } from "@/hooks/useRealtimeVoiceCall";
+import {
+  useRealtimeVoiceCall,
+  type RealtimeCallState,
+} from "@/hooks/useRealtimeVoiceCall";
 
 interface LiveCallInterfaceProps {
   session: {
@@ -22,11 +25,16 @@ interface LiveCallInterfaceProps {
  * continuous VAD turn loop running, or the call wrapped up. */
 type Phase = "greeting" | "live" | "ended";
 
-const STATE_LABEL: Record<string, string> = {
+// Keyed on the full display-state union (the hook's states plus "ended")
+// rather than a bare `Record<string, string>` - that would let a future
+// state added to RealtimeCallState compile with no label here and render a
+// blank badge silently. This way it's a compile error instead.
+const STATE_LABEL: Record<RealtimeCallState | "ended", string> = {
   connecting: "Connecting",
   listening: "Listening",
   speaking: "You're speaking",
   agent_speaking: "Agent speaking",
+  ended: "Call ended",
 };
 
 /**
@@ -82,6 +90,31 @@ export function LiveCallInterface({
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // A one-off error (a dropped turn, a transcription failure) shouldn't
+  // stay pinned to the screen for the rest of the call once things recover
+  // - clear it as soon as another turn actually produces a message
+  // (user_transcript or agent_reply are the only two paths that push into
+  // `messages`, so any growth here means a turn just succeeded).
+  useEffect(() => {
+    if (messages.length > 0) setError(null);
+  }, [messages]);
+
+  // The transcript should show the greeting from the moment the call
+  // starts, not sit blank until the first real turn completes - the
+  // greeting is already spoken by the audio played above, this just makes
+  // it visible too. Computed rather than seeded into state so it never
+  // collides with `messages`, which is owned entirely by the hook.
+  const displayMessages = useMemo(
+    () =>
+      session.greeting
+        ? [
+            { id: "greeting", role: "agent" as const, text: session.greeting },
+            ...messages,
+          ]
+        : messages,
+    [session.greeting, messages],
+  );
+
   /** Stop any playing audio, tell the backend the call is over, and hand
    * off to the caller's post-call handling (scoring/CRM sync toast, etc). */
   const endCall = async () => {
@@ -100,7 +133,11 @@ export function LiveCallInterface({
   };
 
   const displayState =
-    phase === "greeting" ? "agent_speaking" : phase === "ended" ? "ended" : state;
+    phase === "greeting"
+      ? "agent_speaking"
+      : phase === "ended"
+        ? "ended"
+        : state;
   const isLive = phase !== "ended";
 
   return (
@@ -119,7 +156,7 @@ export function LiveCallInterface({
             )}
           />
           <span className="label-caps" aria-live="polite">
-            {phase === "ended" ? "Call ended" : STATE_LABEL[displayState]}
+            {STATE_LABEL[displayState]}
           </span>
         </div>
 
@@ -181,7 +218,7 @@ export function LiveCallInterface({
         )}
 
         <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-          {messages.map((message) => (
+          {displayMessages.map((message) => (
             <div
               key={message.id}
               className={cn(
