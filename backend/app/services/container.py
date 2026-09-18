@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from fastapi import Request
+from starlette.requests import HTTPConnection
 
 from app.config import Settings
 from app.session import SessionStore
@@ -78,9 +79,19 @@ def build_services(settings: Settings) -> Services:
     )
 
 
-def get_services(request: Request) -> Services:
-    """FastAPI dependency: the services attached to this app."""
-    return request.app.state.services
+def get_services(connection: HTTPConnection) -> Services:
+    """FastAPI dependency: the services attached to this app.
+
+    Typed as ``HTTPConnection`` - the common base of ``Request`` and
+    ``WebSocket`` - rather than ``Request`` alone, because FastAPI's
+    dependency resolver only fills in a ``Request``-typed parameter when the
+    connection is actually an HTTP request. A websocket route's connection is
+    a ``WebSocket`` instance, so that check silently fails and the parameter
+    is left unset, raising a ``TypeError`` at call time. The
+    ``http_connection_param_name`` slot FastAPI fills for this broader type
+    has no such gate, so this works for both HTTP and websocket routes.
+    """
+    return connection.app.state.services
 
 
 def get_settings_from_app(request: Request) -> Settings:

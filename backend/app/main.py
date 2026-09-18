@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, get_settings
 from app.logging_config import configure_logging
-from app.routers import audio, calls, crm, health, telephony
+from app.routers import audio, browser_ws, calls, crm, health, telephony
 from app.services.container import Services, build_services
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,7 @@ def create_app(
     app.include_router(telephony.router)
     app.include_router(audio.router)
     app.include_router(crm.router)
+    app.include_router(browser_ws.router)
 
     if STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
