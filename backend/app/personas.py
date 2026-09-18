@@ -152,6 +152,43 @@ def _real_estate_steps(details: dict[str, object] | None) -> str:
     return " ".join(steps)
 
 
+def _greeting_verb(gender: str) -> str:
+    """Hindi first-person present-continuous verb agreement: बोल रहा/रही हूँ."""
+    return "रही" if gender.lower() == "female" else "रहा"
+
+
+def _real_estate_greeting(persona: Persona, lead_name: str, language: str) -> str:
+    """Build the opening greeting for a real estate agent, in the caller's language."""
+    if language.lower().startswith("hi"):
+        verb = _greeting_verb(persona.gender)
+        return (
+            f"नमस्ते {lead_name} जी, मैं {persona.name} बोल {verb} हूँ "
+            f"{REAL_ESTATE_COMPANY} से। आपने प्रॉपर्टी के बारे में पूछताछ की थी। "
+            "क्या अभी बात करने का सही समय है?"
+        )
+    return (
+        f"Hello {lead_name}, this is {persona.name} from "
+        f"{REAL_ESTATE_COMPANY}. I received your inquiry regarding a "
+        "property. Is this a good time to talk?"
+    )
+
+
+def _b2b_greeting(persona: Persona, lead_name: str, language: str) -> str:
+    """Build the opening greeting for a B2B agent, in the caller's language."""
+    if language.lower().startswith("hi"):
+        verb = _greeting_verb(persona.gender)
+        return (
+            f"नमस्ते {lead_name} जी, मैं {persona.name} बोल {verb} हूँ "
+            f"{B2B_COMPANY} से। मैंने देखा कि आप अपनी सेल्स प्रक्रिया को बेहतर "
+            "बनाना चाहते हैं। क्या आपके पास एक मिनट है?"
+        )
+    return (
+        f"Hi {lead_name}, this is {persona.name} from {B2B_COMPANY}. "
+        "I noticed you're looking to improve sales efficiency. "
+        "Do you have a minute?"
+    )
+
+
 def _real_estate_prompt(
     persona: Persona,
     lead_name: str,
@@ -219,20 +256,12 @@ def build_agent_profile(
             system_prompt=_real_estate_prompt(
                 persona, lead_name, lead_company, language, details
             ),
-            greeting=(
-                f"Hello {lead_name}, this is {persona.name} from "
-                f"{REAL_ESTATE_COMPANY}. I received your inquiry regarding a "
-                "property. Is this a good time to talk?"
-            ),
+            greeting=_real_estate_greeting(persona, lead_name, language),
         )
 
     return AgentProfile(
         persona=persona,
         company_name=B2B_COMPANY,
         system_prompt=_b2b_prompt(persona, lead_name, language, details),
-        greeting=(
-            f"Hi {lead_name}, this is {persona.name} from {B2B_COMPANY}. "
-            "I noticed you're looking to improve sales efficiency. "
-            "Do you have a minute?"
-        ),
+        greeting=_b2b_greeting(persona, lead_name, language),
     )

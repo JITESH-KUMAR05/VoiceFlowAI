@@ -71,3 +71,37 @@ def test_every_profile_states_the_spoken_language(agent_type):
     )
 
     assert "hi-IN" in profile.system_prompt
+
+
+@pytest.mark.parametrize("agent_type", ["b2b", "real-estate"])
+def test_the_greeting_is_english_by_default(agent_type):
+    profile = build_agent_profile(
+        agent_type=agent_type, lead_name="Sam", voice_id="en-IN-anisha"
+    )
+
+    assert profile.greeting.isascii()
+
+
+@pytest.mark.parametrize("agent_type", ["b2b", "real-estate"])
+def test_the_greeting_is_hindi_when_the_call_is_in_hindi(agent_type):
+    profile = build_agent_profile(
+        agent_type=agent_type,
+        lead_name="Sam",
+        voice_id="hi-IN-khyati",
+        language="hi-IN",
+    )
+
+    assert not profile.greeting.isascii()
+    assert "Sam" in profile.greeting
+
+
+def test_the_hindi_greeting_agrees_with_the_personas_gender():
+    female = build_agent_profile(
+        agent_type="b2b", lead_name="Sam", voice_id="hi-IN-khyati", language="hi-IN"
+    )
+    male = build_agent_profile(
+        agent_type="b2b", lead_name="Sam", voice_id="hi-IN-aman", language="hi-IN"
+    )
+
+    assert "रही" in female.greeting
+    assert "रहा" in male.greeting
