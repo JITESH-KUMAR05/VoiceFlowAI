@@ -160,9 +160,12 @@ needs to vary by `language` the same way the system prompt already does.
 ## Error handling
 
 - Mic permission denied, or the browser lacks WebSocket/AudioWorklet
-  support: fall back to the existing typed-input path — not removed, still
-  the safety net `LiveCallInterface.tsx` already has for "playback was
-  blocked" and unsupported-recognition cases.
+  support: surface a clear error state, matching how `LiveCallInterface.tsx`
+  already reports "playback was blocked" and unsupported-recognition cases
+  today. (Correction from an earlier draft of this section: there is no
+  typed-text fallback in the current component to preserve — the existing
+  code only ever showed warning banners, never a text input — so this is a
+  clear error message, not a fallback input mode.)
 - WebSocket disconnects mid-call: surface an error and let the caller
   retry rather than silently hanging in "listening" state forever.
 - Whisper fails on one utterance: tell the caller to repeat rather than
