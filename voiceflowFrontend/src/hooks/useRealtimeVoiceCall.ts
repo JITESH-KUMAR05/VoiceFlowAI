@@ -29,10 +29,7 @@ import {
 /** Where the turn loop currently is: waiting to connect, waiting for the
  * caller to speak, the caller mid-utterance, or the agent's reply playing. */
 export type RealtimeCallState =
-  | "connecting"
-  | "listening"
-  | "speaking"
-  | "agent_speaking";
+  "connecting" | "listening" | "speaking" | "agent_speaking";
 
 /** One line of the visible transcript - either what the caller said or what
  * the agent replied. */
@@ -81,6 +78,21 @@ export function useRealtimeVoiceCall({
   const [state, setState] = useState<RealtimeCallState>("connecting");
   const [messages, setMessages] = useState<RealtimeMessage[]>([]);
   const isAgentSpeakingRef = useRef(false);
+  // True from the moment a barge-in cancels the in-flight reply until the
+  // server confirms the cancellation - covers the window where audio
+  // chunks the server already wrote to the socket before processing our
+  // cancel() are still arriving and must be thrown away, not played.
+  const discardingAudioRef = useRef(false);
+
+  // Keep the latest onError in a ref rather than the main effect's
+  // dependency array. Task 12 will pass an inline arrow function, which is
+  // a new value on every render - depending on it directly would tear down
+  // and rebuild the AudioContext/WebSocket/mic stream on every parent
+  // re-render instead of only when the call itself changes.
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -90,10 +102,13 @@ export function useRealtimeVoiceCall({
     const player = new RealtimeAudioPlayer(audioContext);
 
     const client = new RealtimeCallClient(sessionId, {
-      // A binary frame is one chunk of the agent's synthesized speech -
-      // queue it for gapless playback and reflect that the agent is
-      // talking so a barge-in knows to interrupt it.
+      // A binary frame is one chunk of the agent's synthesized speech.
+      // While a barge-in cancellation is still in flight, the server may
+      // have already written chunks to the socket before it saw our
+      // cancel() - discard those instead of playing audio back over the
+      // caller mid-sentence.
       onAudioChunk: (chunk) => {
+        if (discardingAudioRef.current) return;
         isAgentSpeakingRef.current = true;
         setState("agent_speaking");
         player.enqueue(new Int16Array(chunk));
@@ -116,14 +131,20 @@ export function useRealtimeVoiceCall({
           setState("listening");
         } else if (message.type === "error") {
           isAgentSpeakingRef.current = false;
-          onError(message.detail);
+          player.stop();
+          onErrorRef.current(message.detail);
           setState("listening");
+        } else if (message.type === "cancelled") {
+          // The server has confirmed the barge-in cancellation - any
+          // chunks from the abandoned reply that were already in flight
+          // have now been accounted for, so it's safe to accept audio
+          // again for the next reply.
+          discardingAudioRef.current = false;
         }
-        // "cancelled" needs no UI reaction - the barge-in already stopped
-        // playback locally the moment speech was detected.
       },
       onClose: () => {
-        if (!cancelled) onError("The connection to the agent was lost.");
+        if (!cancelled)
+          onErrorRef.current("The connection to the agent was lost.");
       },
     });
 
@@ -131,13 +152,15 @@ export function useRealtimeVoiceCall({
 
     MicVAD.new({
       // The caller started talking. If the agent's reply is still
-      // playing, this is a barge-in: stop local playback and tell the
-      // backend to abandon the in-flight reply before it wastes more
-      // tokens/audio on something no one will hear.
+      // playing, this is a barge-in: stop local playback, discard any
+      // reply audio already in flight, and tell the backend to abandon
+      // the in-flight reply before it wastes more tokens/audio on
+      // something no one will hear.
       onSpeechStart: () => {
         if (isAgentSpeakingRef.current) {
           player.stop();
           isAgentSpeakingRef.current = false;
+          discardingAudioRef.current = true;
           client.cancel();
         }
         setState("speaking");
@@ -158,8 +181,16 @@ export function useRealtimeVoiceCall({
         void vad.start();
         setState("listening");
       })
-      .catch(() => {
-        onError("Microphone access is needed for a live conversation.");
+      .catch((error: unknown) => {
+        // MicVAD.new() awaits its own start() internally (startOnLoad
+        // defaults to true), so this one catch covers mic permission
+        // denial, onnx model fetch failures, AudioWorklet load failures,
+        // and wasm load failures alike - don't assert a specific cause we
+        // can't confirm from here.
+        console.error("MicVAD failed to start:", error);
+        onErrorRef.current(
+          "Could not start voice detection - check the console for details.",
+        );
       });
 
     // Effect cleanup: tear everything down when the hook is disabled or
@@ -172,7 +203,7 @@ export function useRealtimeVoiceCall({
       player.stop();
       void audioContext.close();
     };
-  }, [sessionId, enabled, onError]);
+  }, [sessionId, enabled]);
 
   return { state, messages };
 }
