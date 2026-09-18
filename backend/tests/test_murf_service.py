@@ -109,3 +109,16 @@ def test_a_mid_stream_failure_yields_what_arrived_before_it_rather_than_raising(
     # FakeStreamClient raising on the last configured chunk instead of
     # yielding it.
     assert chunks == [b"first"]
+
+
+def test_create_audio_stream_can_request_raw_pcm_for_the_realtime_path():
+    stream_client = FakeStreamClient()
+    service = build_service(stream_client)
+
+    list(
+        service.create_audio_stream(
+            "Hello there", "en-IN-anisha", "en-IN", audio_format="PCM"
+        )
+    )
+
+    assert stream_client.calls[0]["format"] == "PCM"

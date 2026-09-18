@@ -48,9 +48,18 @@ class MurfService:
         )
 
     def create_audio_stream(
-        self, text: str, voice_id: str, language: str = "en-IN"
+        self,
+        text: str,
+        voice_id: str,
+        language: str = "en-IN",
+        audio_format: str = "WAV",
     ) -> Iterator[bytes]:
-        """Yield WAV chunks for ``text``.
+        """Yield audio chunks for ``text``.
+
+        ``audio_format`` is "WAV" for the REST path (Twilio's <Play> and the
+        browser's <audio> element both need a self-contained file) and "PCM"
+        for the real-time WebSocket path, where the client schedules raw
+        samples directly in the Web Audio API instead of decoding a file.
 
         Yields nothing if synthesis fails. Callers stream this straight to
         Twilio or the browser, so raising here would surface as a broken
@@ -65,7 +74,7 @@ class MurfService:
                 voice_id=name,
                 model=MODEL,
                 locale=language,
-                format="WAV",
+                format=audio_format,
                 sample_rate=SAMPLE_RATE_HZ,
             )
         except Exception:
